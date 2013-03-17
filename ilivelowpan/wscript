@@ -1,0 +1,22 @@
+## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+def build(bld):
+    module = bld.create_ns3_module('ilivelowpan', ['internet'])
+    module.includes = '.'
+    module.source = [
+        'model/sixlowpan-net-device.cc',
+        'model/sixlowpan-header.cc',
+        'helper/sixlowpan-helper.cc',
+        ]
+
+    headers = bld.new_task_gen(features=['ns3header'])
+    headers.module = 'ilivelowpan'
+    headers.source = [
+        'model/sixlowpan-net-device.h',
+        'model/sixlowpan-header.h',
+        'helper/sixlowpan-helper.h',
+        ]
+
+
+    if bld.env['ENABLE_EXAMPLES']:
+        bld.add_subdirs('examples')
