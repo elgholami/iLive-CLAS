@@ -75,7 +75,7 @@ public:
    +------------+------------------------------------------------+
    \endverbatim
    */
-  enum Dispatch_e
+  typedef enum
   {
     LOWPAN_NALP = 0x0,
     LOWPAN_NALP_N = 0x3F,
@@ -91,7 +91,7 @@ public:
     LOWPAN_FRAGN = 0xE0,
     LOWPAN_FRAGN_N = 0xE7,
     LOWPAN_UNSUPPORTED = 0xFF
-  };
+  } Dispatch_e;
 
   SixLowPanDispatch (void);
   SixLowPanDispatch (Dispatch_e dispatch);

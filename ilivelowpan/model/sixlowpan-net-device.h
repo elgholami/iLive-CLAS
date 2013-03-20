@@ -55,9 +55,9 @@ public:
 			const Address& dest, uint16_t protocolNumber);
 	virtual Ptr<Node> GetNode(void) const;
 	virtual void SetNode(Ptr<Node> node);
-	//WTF, ARP for IPv6??
+	//WTF, ARP for IPv6?? Not exist in the NetDevice base class anymore.
 	virtual bool NeedsArp(void) const;
-	//WTF, ARP for IPv6??
+	//WTF, ARP for IPv6?? Not exist in the NetDevice base class anymore.
 	virtual void SetReceiveCallback(NetDevice::ReceiveCallback cb);
 	virtual void SetPromiscReceiveCallback(
 			NetDevice::PromiscReceiveCallback cb);
@@ -168,7 +168,7 @@ private:
 	};
 
 	/**
-	 * \brief Return the instance type identifier.
+	 * \brief Return the instance type identifier, a value of void ???.
 	 * \param packet the packet to be fragmented (with headers already compressed with 6LoWPAN)
 	 * \param origPacketSize the size of the IP packet before the 6LoWPAN header compression, including the IP/L4 headers
 	 * \param listFragments a reference to the list of the resulting packets, all with the proper headers in place
@@ -213,8 +213,8 @@ private:
 	uint32_t m_ifIndex;
 };
 
+} // namespace sixlowpan
 } // namespace ns3
-}
 
 #endif /* SIXLOWPAN_NET_DEVICE_H */
 
