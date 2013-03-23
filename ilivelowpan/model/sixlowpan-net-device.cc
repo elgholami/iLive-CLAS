@@ -77,6 +77,7 @@ SixLowPanNetDevice::SixLowPanNetDevice() :
 {
 	NS_LOG_FUNCTION_NOARGS ();
 	m_port = 0;
+	//YIBO: Use Port not interface index ? No. Use Set/GetIfindex.
 
 //  overhead = 0;
 //  ipv6_oh_diff = 0;
@@ -118,7 +119,7 @@ SixLowPanNetDevice::SixLowPanNetDevice() :
 
 SixLowPanNetDevice::~SixLowPanNetDevice() {
 	NS_LOG_FUNCTION_NOARGS ();
-	//YIBO: do nothing for release
+	//YIBO: do nothing for destructure.
 }
 
 Ptr<NetDevice> SixLowPanNetDevice::GetPort() const {
@@ -161,7 +162,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	bool isPktDecompressed = false;
 
 	//YIBO: Print the packet received and length, which is from csma layer!
-	NS_LOG_DEBUG ( "Packet received: " << *copyPkt ); NS_LOG_DEBUG ( "Packet length:" << copyPkt->GetSize () );
+	NS_LOG_DEBUG ( "Packet received: " << *copyPkt );NS_LOG_DEBUG ( "Packet length:" << copyPkt->GetSize () );
 
 	//      NALP = 0x0,
 	//      NALP_N = 0x3F,
@@ -216,22 +217,24 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	//YIBO: Test the header storage of 6LoWPAN
 	Address address = m_port->GetAddress();
 
-//	Ipv6Header* hdr; // = (*dynamic_cast<Ipv6Header *> ipHeaders->GetHeader(Ipv6Header::GetTypeId()) );
-//	hdr = ipHeaders->GetHeader(Ipv6Header::GetTypeId());
+	Ipv6Header* hdr; // = (*dynamic_cast<Ipv6Header *> ipHeaders->GetHeader(Ipv6Header::GetTypeId()) );
+	//YIBO: Force Header type to Ipv6Header type.
+	hdr = (Ipv6Header *) ipHeaders->GetHeader(Ipv6Header::GetTypeId());
 //	if (hdr) {
-//		//packet->AddHeader(*dynamic_cast<Ipv6Header *>(& hdr));
-//		//YIBO: why need to add the header again.
+//		//packet->AddHeader(*dynamic_cast<Ipv6Header *>(hdr));
+//		//YIBO: why need to add the header again?
+//		packet->AddHeader(hdr);
 //	}
-//
-//	if (packetType == 0) {
-//		if (hdr->GetDestinationAddress().IsMulticast()) {
-//			packetType = PACKET_MULTICAST;
-//		} else if (hdr->GetDestinationAddress() == address) {
-//			packetType = PACKET_HOST;
-//		} else {
-//			packetType = PACKET_OTHERHOST;
-//		}
-//	}
+
+	if (packetType == 0) {
+		if (hdr->GetDestinationAddress().IsMulticast()) {
+			packetType = PACKET_MULTICAST;
+		} else if (hdr->GetDestinationAddress() == address) {
+			packetType = PACKET_HOST;
+		} else {
+			packetType = PACKET_OTHERHOST;
+		}
+	}
 
 	//YIBO: After the process functions above, the processed package need to be delivered to Ipv6L3Protocol.
 	//YIBO: Notice these thwo Callback.
@@ -242,7 +245,6 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	}
 
 	m_rxCallback(this, copyPkt, Ipv6L3Protocol::PROT_NUMBER, src);
-
 
 	//YIBO: Check the packetType
 	switch (packetType) {
@@ -270,7 +272,7 @@ void SixLowPanNetDevice::SetIfIndex(const uint32_t index) {
 	NS_LOG_FUNCTION_NOARGS ();
 	// NS_ASSERT_MSG ( m_port != 0, "Sixlowpan: can't find any lower-layer protocol " << m_port );
 	m_ifIndex = index;
-	// m_port->SetIfIndex(index);
+//	 m_port->SetIfIndex(index);
 }
 
 uint32_t SixLowPanNetDevice::GetIfIndex(void) const {
@@ -278,6 +280,7 @@ uint32_t SixLowPanNetDevice::GetIfIndex(void) const {
 	// NS_ASSERT_MSG ( m_port != 0, "Sixlowpan: can't find any lower-layer protocol " << m_port );
 	// return m_ifIndex;
 	return m_port->GetIfIndex();
+	//YIBO:: ??
 }
 
 Ptr<Channel> SixLowPanNetDevice::GetChannel(void) const {
@@ -386,12 +389,14 @@ bool SixLowPanNetDevice::IsBridge(void) const {
 
 	return m_port->IsBridge();
 }
+//YIBO:: ?? All of the functions above use the m_port variable.
 
 bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 		uint16_t protocolNumber) {
 	NS_LOG_FUNCTION_NOARGS ();
 	NS_ASSERT_MSG( m_port != 0,
 			"Sixlowpan: can't find any lower-layer protocol " << m_port);
+	//YIBO:: m_port is the only used parameter in sixlowpan net device.
 
 	uint32_t origHdrSize = 0;
 	uint32_t origPacketSize = packet->GetSerializedSize();
@@ -401,16 +406,17 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 
 	origHdrSize += CompressLowPanHc1(packet, m_port->GetAddress(), dest,
 			headersPre);
+	//YIBO:: create new function compressLowPanHc6...here
 
 	if (packet->GetSerializedSize() > GetMtu()) {
-		// fragment
+		//YIBO:: fragment is needed, Mtu is smaller than the packet. Test requested.
 		std::list<Ptr<Packet> > fragmentList;
 		DoFragmentation(packet, origPacketSize, origHdrSize, headersPre,
 				headersPost, fragmentList);
 		std::list<Ptr<Packet> >::iterator it;
 		bool err = false;
 		for (it = fragmentList.begin(); it != fragmentList.end(); it++) {
-			NS_LOG_DEBUG( "SixLowPanNetDevice::Send (Fragment) " << **it );
+			NS_LOG_DEBUG( "CYB:SixLowPanNetDevice::Send (Fragment) " << **it );
 			// err |= !(m_port->Send(*it, dest, protocolNumber));
 			err |= !(m_port->Send(*it, dest, 0x809a));
 		}
@@ -419,8 +425,9 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 		FinalizePacketPreFrag(packet, headersPre);
 		FinalizePacketPostFrag(packet, headersPost);
 
-		NS_LOG_DEBUG( "SixLowPanNetDevice::Send " << m_node->GetId () << " " << *packet );
+		NS_LOG_DEBUG( "CYB:SixLowPanNetDevice::Send " << m_node->GetId () << " " << *packet );
 		// ret = m_port->Send (packet, dest, protocolNumber);
+		//YIBO:: Fix the protocolNumber to UIP_ETHTYPE_802154, like ravenusb. So Wireshark can work.
 		ret = m_port->Send(packet, dest, 0x809a);
 	}
 
@@ -440,9 +447,11 @@ bool SixLowPanNetDevice::SendFrom(Ptr<Packet> packet, const Address& src,
 	bool ret = false;
 
 	origHdrSize += CompressLowPanHc1(packet, src, dest, headersPre);
+	//YIBO:: create new function compressLowPanHc6...here
 
 	if (packet->GetSerializedSize() > GetMtu()) {
 		// fragment
+		//YIBO:: Not test yet
 		std::list<Ptr<Packet> > fragmentList;
 		DoFragmentation(packet, origPacketSize, origHdrSize, headersPre,
 				headersPost, fragmentList);
@@ -460,6 +469,7 @@ bool SixLowPanNetDevice::SendFrom(Ptr<Packet> packet, const Address& src,
 
 		NS_LOG_DEBUG( "SixLowPanNetDevice::SendFrom " << *packet );
 		// ret = m_port->SendFrom (packet, src, dest, protocolNumber);
+		//YIBO:: Fix the protocolNumber to UIP_ETHTYPE_802154, like ravenusb. So Wireshark can work.
 		ret = m_port->SendFrom(packet, src, dest, 0x809a);
 	}
 
@@ -480,7 +490,7 @@ bool SixLowPanNetDevice::NeedsArp(void) const {
 	NS_LOG_FUNCTION_NOARGS ();
 	NS_ASSERT_MSG( m_port != 0,
 			"Sixlowpan: can't find any lower-layer protocol " << m_port);
-
+	//YIBO:: never used.
 	return m_port->NeedsArp();
 }
 
@@ -497,9 +507,11 @@ void SixLowPanNetDevice::SetPromiscReceiveCallback(
 
 bool SixLowPanNetDevice::SupportsSendFrom() const {
 	NS_LOG_FUNCTION_NOARGS ();
+	//YIBO:: useless function.
 	return true;
 }
 
+//YIBO:: ********* Uncomplete header compress 01 module *********
 uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		Address const &src, Address const &dst, Ptr<HeaderStorage> headers) {
 	NS_LOG_FUNCTION (this << *packet << src << dst);
@@ -570,7 +582,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		uint8_t nextHeader = ipHeader.GetNextHeader();
 		hc1Header->SetNextHeader(nextHeader);
 
-		// TODO: Add the proper getter/setters to UdpHeader and finalize this.
+		//YIBO:: TODO: Add the proper getter/setters to UdpHeader and finalize this.
 //      if(nextHeader == Ipv6Header::IPV6_UDP)
 //        {
 //          hc1Header->SetHc2HeaderPresent(true);
