@@ -18,7 +18,7 @@ namespace sixlowpan {
 class SixLowPanNetDevice: public NetDevice {
 public:
 	// same as IPv4 Drop Reasons, some does not apply
-	enum DropReason {
+	typedef enum {
 		DROP_TTL_EXPIRED = 1, /**< Packet TTL has expired */
 		DROP_NO_ROUTE, /**< No route to host */
 		DROP_BAD_CHECKSUM, /**< Bad checksum */
@@ -26,7 +26,7 @@ public:
 		DROP_ROUTE_ERROR, /**< Route error */
 		DROP_FRAGMENT_TIMEOUT, /**< Fragment timeout exceeded */
 		DROP_FRAGMENT_BUFFERFULL /**< Fragment buffer size exceeded */
-	};
+	} DropReason;
 
 	static TypeId GetTypeId(void);
 	SixLowPanNetDevice();
