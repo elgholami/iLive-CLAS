@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
 //#endif
 
 	LogComponentEnable("ExampleSixlowpan", LOG_LEVEL_ALL);
-	LogComponentEnable("SixLowPanHelper", LOG_LEVEL_ALL);
+//	LogComponentEnable("SixLowPanHelper", LOG_LEVEL_ALL);
 	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_DEBUG);
 
 
@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
 
 	std::cout << "      - Packet now: " << net1.Get(0) << std::endl;
 	apps.Start(Seconds(5.0));
-	apps.Stop(Seconds(6.0));
+	apps.Stop(Seconds(10.0));
 
 	AsciiTraceHelper ascii;
 	csma.EnableAsciiAll(ascii.CreateFileStream("example-sixlowpan.tr"));
