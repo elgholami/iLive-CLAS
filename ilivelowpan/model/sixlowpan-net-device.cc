@@ -150,7 +150,7 @@ void SixLowPanNetDevice::DoDispose() {
 void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 		Ptr<const Packet> packet, uint16_t protocol, Address const &src,
 		Address const &dst, PacketType packetType) {
-	NS_LOG_FUNCTION_NOARGS (); NS_LOG_DEBUG ("UID is " << packet->GetUid ());
+	NS_LOG_FUNCTION_NOARGS ();NS_LOG_DEBUG ("UID is " << packet->GetUid ());
 
 	uint8_t dispatchRawVal = 0;
 	SixLowPanDispatch::Dispatch_e dispatchVal;
@@ -161,7 +161,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	dispatchVal = SixLowPanDispatch::GetDispatchType(dispatchRawVal);
 	bool isPktDecompressed = false;
 
-	//YIBO: Print the packet received and length, which is from csma layer!
+	//YIBO: Print the packet received and length, which is from csma layer right now.
 	NS_LOG_DEBUG ( "Packet received: " << *copyPkt );NS_LOG_DEBUG ( "Packet length:" << copyPkt->GetSize () );
 
 	//      NALP = 0x0,
@@ -511,7 +511,7 @@ bool SixLowPanNetDevice::SupportsSendFrom() const {
 	return true;
 }
 
-//YIBO:: ********* Uncomplete header compress 01 module *********
+//YIBO:: ********* Uncomplete header compress 01-02 module *********
 uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		Address const &src, Address const &dst, Ptr<HeaderStorage> headers) {
 	NS_LOG_FUNCTION (this << *packet << src << dst);
@@ -529,12 +529,12 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		uint8_t bufOne[16];
 		uint8_t bufTwo[16];
 		Ipv6Address srcAddr = ipHeader.GetSourceAddress();
-		srcAddr.GetBytes(bufOne);
+		srcAddr.GetBytes(bufOne); //YIBO::Put srcAddr into bufOne.
 		Ipv6Address mySrcAddr = Ipv6Address::MakeAutoconfiguredLinkLocalAddress(
-				Mac48Address::ConvertFrom(src));
-		mySrcAddr.GetBytes(bufTwo);
+				Mac48Address::ConvertFrom(src)); //YIBO:: process src to Ipv6Address mySrcAddr.
+		mySrcAddr.GetBytes(bufTwo); //YIBO:: process src to Ipv6Address mySrcAddr. Saved in bufTwo.
 		bool isSrcSrc = (memcmp(bufOne + 8, bufTwo + 8, 8) == 0);
-
+		//YIBO:: if AddrSrc in packet and src are equal. isSrcSrc = true.
 		if (srcAddr.IsLinkLocal() && isSrcSrc) {
 			hc1Header->SetSrcCompression(SixLowPanHc1::HC1_PCIC);
 		} else if (srcAddr.IsLinkLocal()) {
@@ -572,38 +572,38 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		if ((ipHeader.GetFlowLabel() == 0)
 				&& (ipHeader.GetTrafficClass() == 0)) {
-			hc1Header->SetTcflCompression(true);
+			hc1Header->SetTcflCompression(true); //YIBO:: tcfl WTF??
 		} else {
 			hc1Header->SetTcflCompression(false);
 			hc1Header->SetTrafficClass(ipHeader.GetTrafficClass());
 			hc1Header->SetFlowLabel(ipHeader.GetFlowLabel());
 		}
 
-		uint8_t nextHeader = ipHeader.GetNextHeader();
-		hc1Header->SetNextHeader(nextHeader);
+		uint8_t nextHeader = ipHeader.GetNextHeader(); //YIBO:: Return a next header number.
+		hc1Header->SetNextHeader(nextHeader); //YIBO:: UDP;TCP;ICMPv6
 
 		//YIBO:: TODO: Add the proper getter/setters to UdpHeader and finalize this.
-//      if(nextHeader == Ipv6Header::IPV6_UDP)
-//        {
-//          hc1Header->SetHc2HeaderPresent(true);
+//		if (nextHeader == Ipv6Header::IPV6_UDP) {
+//			hc1Header->SetHc2HeaderPresent(true);
 //
-//          UdpHeader udpHeader;
-//          packet->RemoveHeader(udpHeader);
-//          size += udpHeader.GetSerializedSize();
-//          hc1Header->SetUdpSrcPort(udpHeader.GetSourcePort());
-//          hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
-//          hc1Header->SetUdpLength(udpHeader.Get);
-//          hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
-//        }
-//      else
-//        {
-//          hc1Header->SetHc2HeaderPresent(false);
-//        }
-		hc1Header->SetHc2HeaderPresent(false);
+//			UdpHeader udpHeader;
+//			packet->RemoveHeader(udpHeader);
+//			size += udpHeader.GetSerializedSize();
+//			hc1Header->SetUdpSrcPort(udpHeader.GetSourcePort());
+//			hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
+//			hc1Header->SetUdpLength(udpHeader.Get);
+//			hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
+//		} else {
+//			hc1Header->SetHc2HeaderPresent(false);
+//		}
+
+		//YIBO:: TODO: NextHeader == Ipv6Header::IPV6_ICMPV6;
+
+		hc1Header->SetHc2HeaderPresent(false); //YIBO::Hc2 not support, no Next header.
 
 		headers->StoreHeader(SixLowPanHc1::GetTypeId(), hc1Header);
 
-		return size;
+		return size; //YIBO:: Only compress IPv6 header.
 		//packet->AddHeader (hc1Header);
 	}
 
