@@ -476,6 +476,27 @@ void SixLowPanHc1::SetHc2HeaderPresent(bool hc2HeaderPresent) {
 	m_hc2HeaderPresent = hc2HeaderPresent;
 }
 
+void SixLowPanHc1::SetTtl(uint8_t ttl) {
+	m_ttl = ttl;
+}
+
+void SixLowPanHc1::SetHc1Encoding(uint8_t hc1Encoding) {
+	m_hc1Encoding = hc1Encoding;
+}
+
+void SixLowPanHc1::SetUdpEncoding(uint8_t UdpEncoding){
+	m_hcUdpEncoding = UdpEncoding;
+}
+void SixLowPanHc1::SetUdpSrcPort(uint16_t UdpSrcPort){
+	m_hcUdpSrcPort = UdpSrcPort;
+}
+void SixLowPanHc1::SetUdpDstPort(uint16_t UdpDstPort){
+	m_hcUdpDstPort = UdpDstPort;
+}
+void SixLowPanHc1::SetUdpLength(uint16_t UdpLength){
+	m_hcUdpLength = UdpLength;
+}
+
 std::ostream & operator <<(std::ostream & os, const SixLowPanHc1 & h) {
 	h.Print(os);
 	return os;
