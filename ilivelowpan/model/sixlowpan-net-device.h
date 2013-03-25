@@ -73,6 +73,9 @@ protected:
 	void ReceiveFromDevice(Ptr<NetDevice> device, Ptr<const Packet> packet,
 			uint16_t protocol, Address const &source,
 			Address const &destination, PacketType packetType);
+//	void ReceiveFromDevice(Ptr<NetDevice> device, Ptr<Packet> packet,
+//			uint16_t protocol, Address const &source,
+//			Address const &destination, PacketType packetType);
 
 private:
 	NetDevice::ReceiveCallback m_rxCallback;
