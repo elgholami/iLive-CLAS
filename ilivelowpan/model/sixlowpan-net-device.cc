@@ -174,6 +174,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	//      LOWPAN_FRAG1 = 0xC0,
 	//      LOWPAN_FRAGN = 0xE0,
 	//      UNSUPPORTED = 0xFF
+	//YIBO:: 6lowpan dispatches
 
 	if (dispatchVal == SixLowPanDispatch::LOWPAN_MESH) {
 		NS_FATAL_ERROR(
@@ -221,9 +222,9 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	//YIBO: Force Header type to Ipv6Header type.
 	hdr = (Ipv6Header *) ipHeaders->GetHeader(Ipv6Header::GetTypeId());
 //	if (hdr) {
-//		//packet->AddHeader(*dynamic_cast<Ipv6Header *>(hdr));
-//		//YIBO: why need to add the header again?
-//		packet->AddHeader(hdr);
+//		packet->AddHeader(*dynamic_cast<Ipv6Header *>(hdr));
+////		//YIBO: why need to add the header again?
+////		packet->AddHeader(hdr);
 //	}
 
 	if (packetType == 0) {
@@ -511,7 +512,7 @@ bool SixLowPanNetDevice::SupportsSendFrom() const {
 	return true;
 }
 
-//YIBO:: ********* Uncomplete header compress 01-02 module *********
+//YIBO:: ********* Incomplete header compress 01-02 module *********
 uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		Address const &src, Address const &dst, Ptr<HeaderStorage> headers) {
 	NS_LOG_FUNCTION (this << *packet << src << dst);
@@ -572,7 +573,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		if ((ipHeader.GetFlowLabel() == 0)
 				&& (ipHeader.GetTrafficClass() == 0)) {
-			hc1Header->SetTcflCompression(true); //YIBO:: tcfl WTF??
+			hc1Header->SetTcflCompression(true); //YIBO:: tcfl Traffic class field - 8 bit of ipv6 header
 		} else {
 			hc1Header->SetTcflCompression(false);
 			hc1Header->SetTrafficClass(ipHeader.GetTrafficClass());
@@ -583,28 +584,48 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		hc1Header->SetNextHeader(nextHeader); //YIBO:: UDP;TCP;ICMPv6
 
 		//YIBO:: TODO: Add the proper getter/setters to UdpHeader and finalize this.
-//		if (nextHeader == Ipv6Header::IPV6_UDP) {
-//			hc1Header->SetHc2HeaderPresent(true);
-//
-//			UdpHeader udpHeader;
-//			packet->RemoveHeader(udpHeader);
-//			size += udpHeader.GetSerializedSize();
-//			hc1Header->SetUdpSrcPort(udpHeader.GetSourcePort());
-//			hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
-//			hc1Header->SetUdpLength(udpHeader.Get);
-//			hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
-//		} else {
-//			hc1Header->SetHc2HeaderPresent(false);
-//		}
+		//YIBO:: We do only full compression.
+		//YIBO:: This is feasible if both src and dest ports are between
+		//YIBO:: SIXLOWPAN_UDP_PORT_MIN and SIXLOWPAN_UDP_PORT_MIN + 15
+		if (nextHeader == Ipv6Header::IPV6_UDP) {
+			hc1Header->SetHc2HeaderPresent(true);
+
+			UdpHeader udpHeader;
+			packet->RemoveHeader(udpHeader);
+			size += udpHeader.GetSerializedSize();
+
+			hc1Header->SetHc1Encoding(0xFB);
+			hc1Header->SetUdpEncoding(0xE0);
+			hc1Header->SetHopLimit(ipHeader.GetHopLimit());
+			hc1Header->SetUdpSrcPort(udpHeader.GetSourcePort());
+			hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
+			hc1Header->SetUdpLength(udpHeader.GetSerializedSize());
+			//hc1Header->SetUdpChecksum(udpHeader.Get);
+
+			size += 7;
+
+		} else {
+			hc1Header->SetHc2HeaderPresent(false);
+		}
 
 		//YIBO:: TODO: NextHeader == Ipv6Header::IPV6_ICMPV6;
+		if (nextHeader == Ipv6Header::IPV6_ICMPV6) {
+			hc1Header->SetHc1Encoding(0xFE);
+			hc1Header->SetTtl(ipHeader.GetHopLimit());
+			size += 3;
+		} else {
+			hc1Header->SetHc2HeaderPresent(false);
+		}
 
 		hc1Header->SetHc2HeaderPresent(false); //YIBO::Hc2 not support, no Next header.
 
 		headers->StoreHeader(SixLowPanHc1::GetTypeId(), hc1Header);
 
+		//packet->AddHeader(*hc1Header);
+		//packet->AddHeader(*dynamic_cast<SixLowPanHc1 *>(hc1Header));
+
 		return size; //YIBO:: Only compress IPv6 header.
-		//packet->AddHeader (hc1Header);
+
 	}
 
 	return 0;
