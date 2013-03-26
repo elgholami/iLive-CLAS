@@ -162,7 +162,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	bool isPktDecompressed = false;
 
 	//YIBO: Print the packet received and length, which is from csma layer right now.
-	NS_LOG_DEBUG ( "Packet received: " << *copyPkt );NS_LOG_DEBUG ( "Packet length:" << copyPkt->GetSize () );
+//	NS_LOG_DEBUG ( "Packet received: " << *copyPkt );NS_LOG_DEBUG ( "Packet length:" << copyPkt->GetSize () );
 
 	//      NALP = 0x0,
 	//      NALP_N = 0x3F,
@@ -198,6 +198,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 			//YIBO: TODO: Need to deliver the package to IPv6 network layer.
 			break;
 		case SixLowPanDispatch::LOWPAN_HC1:
+			NS_LOG_DEBUG ( "YIBO:Packet with HC1 compression:" << *copyPkt );
 			DecompressLowPanHc1(copyPkt, src, dst, ipHeaders);
 			isPktDecompressed = true;
 			break;
@@ -610,6 +611,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		//YIBO:: TODO: NextHeader == Ipv6Header::IPV6_ICMPV6;
 		if (nextHeader == Ipv6Header::IPV6_ICMPV6) {
+
 			hc1Header->SetHc1Encoding(0xFE);
 			hc1Header->SetTtl(ipHeader.GetHopLimit());
 			size += 3;
@@ -620,6 +622,8 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		hc1Header->SetHc2HeaderPresent(false); //YIBO::Hc2 not support, no Next header.
 
 		headers->StoreHeader(SixLowPanHc1::GetTypeId(), hc1Header);
+		std::cout << "      - YIBO: IPV6_ICMPV6, compressed size = "
+				<< hc1Header->GetSerializedSize() << std::endl;
 
 		//packet->AddHeader(*hc1Header);
 		//packet->AddHeader(*dynamic_cast<SixLowPanHc1 *>(hc1Header));
@@ -642,6 +646,7 @@ void SixLowPanNetDevice::DecompressLowPanHc1(Ptr<Packet> packet,
 	ipHeaderPtr->SetHopLimit(encoding.GetHopLimit());
 
 	switch (encoding.GetSrcCompression()) {
+
 	const uint8_t* interface;
 	const uint8_t* prefix;
 	uint8_t address[16];
@@ -681,6 +686,7 @@ case SixLowPanHc1::HC1_PCIC:
 					Mac48Address::ConvertFrom(src)));
 	break;
 	}
+	//YIBO: End of SrcCompression.
 
 	switch (encoding.GetDstCompression()) {
 	const uint8_t* interface;
@@ -722,6 +728,7 @@ case SixLowPanHc1::HC1_PCIC:
 					Mac48Address::ConvertFrom(dst)));
 	break;
 	}
+	//YIBO: End of DstCompression.
 
 	if (!encoding.IsTcflCompression()) {
 		ipHeaderPtr->SetFlowLabel(encoding.GetFlowLabel());
@@ -734,21 +741,25 @@ case SixLowPanHc1::HC1_PCIC:
 	ipHeaderPtr->SetNextHeader(encoding.GetNextHeader());
 	ipHeaderPtr->SetPayloadLength(packet->GetSize());
 
-//  NS_ASSERT_MSG(encoding.IsHc2HeaderPresent() && (encoding.GetNextHeader() != Ipv6Header::IPV6_UDP),
-//      "6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
-
-	NS_ASSERT_MSG(encoding.IsHc2HeaderPresent() == false,
-			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
+//	NS_ASSERT_MSG(
+//			encoding.IsHc2HeaderPresent() && (encoding.GetNextHeader() != Ipv6Header::IPV6_UDP),
+//			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
+//
+//	NS_ASSERT_MSG(encoding.IsHc2HeaderPresent() == false,
+//			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
 
 	headers->StoreHeader(Ipv6Header::GetTypeId(), ipHeaderPtr);
-
-	NS_LOG_DEBUG( "Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
+	std::cout << "---------------------------------------------------------------------------------" << std::endl;
+	NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
+	std::cout << "---------------------------------------------------------------------------------" << std::endl;
 }
 
 void SixLowPanNetDevice::FinalizePacketPreFrag(Ptr<Packet> packet,
 		Ptr<HeaderStorage> headers) {
 	if (headers->IsEmpty()) {
-		// TODO: add the IPV6 dispatch header
+		// YIBO:TODO: add the IPV6 dispatch header
+		headers->
+
 		return;
 	}
 
