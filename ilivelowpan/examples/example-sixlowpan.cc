@@ -102,6 +102,7 @@ int main(int argc, char** argv) {
 	LogComponentEnable("ExampleSixlowpan", LOG_LEVEL_ALL);
 //	LogComponentEnable("SixLowPanHelper", LOG_LEVEL_ALL);
 	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_DEBUG);
+	LogComponentEnable ("Ping6Application", LOG_LEVEL_INFO);
 
 
 	CommandLine cmd;
@@ -148,7 +149,8 @@ int main(int argc, char** argv) {
 	Ipv6AddressHelper ipv6;
 	ipv6.SetBase(Ipv6Address("2013:1::"), Ipv6Prefix(64));
 	Ipv6InterfaceContainer i1 = ipv6.Assign(six1);
-	i1.SetRouter(1, true);
+	//i1.SetRouter(1, true);
+	i1.SetRouter(2, true);
 
 	stackHelper.PrintRoutingTable(r);
 	stackHelper.PrintRoutingTable(n0);
@@ -156,7 +158,6 @@ int main(int argc, char** argv) {
 
 	/* Create a Ping6 application to send ICMPv6 echo request from n0 to n1 via r */
 	uint32_t packetSize = 100;
-	//uint32_t packetSize = 100;
 	uint32_t maxPacketCount = 50;
 	Time interPacketInterval = Seconds(1.);
 	Ping6Helper ping6;
