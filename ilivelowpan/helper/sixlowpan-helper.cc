@@ -59,6 +59,8 @@ NetDeviceContainer SixLowPanHelper::Install (const NetDeviceContainer c)
       devs.Add (dev);
       node->AddDevice (dev);
       dev->SetPort (device);
+      //YIBO: Can set the MTU here.
+//      dev->SetMtu(102);
     }
   return devs;
 }
