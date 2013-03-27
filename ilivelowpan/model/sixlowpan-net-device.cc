@@ -406,13 +406,16 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 	Ptr<HeaderStorage> headersPost = Create<HeaderStorage>();
 	bool ret = false;
 
+	std::cout << "***CYB:origPacketSize = " << origPacketSize << std::endl;
 	origHdrSize += CompressLowPanHc1(packet, m_port->GetAddress(), dest,
 			headersPre);
+	std::cout << "***CYB:origHdrSize = " << origHdrSize << std::endl;
 	//YIBO:: create new function compressLowPanHc6...here
 
 	if (packet->GetSerializedSize() > GetMtu()) {
 		//YIBO:: fragment is needed, Mtu is smaller than the packet. Test requested.
 		std::list<Ptr<Packet> > fragmentList;
+		std::cout << "-YIBO: Before DoFragmentation of Send!-" << std::endl;
 		DoFragmentation(packet, origPacketSize, origHdrSize, headersPre,
 				headersPost, fragmentList);
 		std::list<Ptr<Packet> >::iterator it;
@@ -428,6 +431,8 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 		FinalizePacketPostFrag(packet, headersPost);
 
 		NS_LOG_DEBUG( "CYB:SixLowPanNetDevice::Send " << m_node->GetId () << " " << *packet );
+		std::cout << "CYB:SixLowPanNetDevice::Send " << m_node->GetId() << " "
+				<< *packet << std::endl;
 		// ret = m_port->Send (packet, dest, protocolNumber);
 		//YIBO:: Fix the protocolNumber to UIP_ETHTYPE_802154, like ravenusb. So Wireshark can work.
 		ret = m_port->Send(packet, dest, 0x809a);
@@ -526,6 +531,8 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		packet->RemoveHeader(ipHeader);
 		size += ipHeader.GetSerializedSize();
 
+		std::cout << "***YIBO: original header size = " << size << std::endl;
+
 		hc1Header->SetHopLimit(ipHeader.GetHopLimit());
 
 		uint8_t bufOne[16];
@@ -589,6 +596,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		//YIBO:: This is feasible if both src and dest ports are between
 		//YIBO:: SIXLOWPAN_UDP_PORT_MIN and SIXLOWPAN_UDP_PORT_MIN + 15
 		if (nextHeader == Ipv6Header::IPV6_UDP) {
+			std::cout << "-------YIBO: I am compressing a IPV6_UDP Header " << std::endl;
 			hc1Header->SetHc2HeaderPresent(true);
 
 			UdpHeader udpHeader;
@@ -611,7 +619,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		//YIBO:: TODO: NextHeader == Ipv6Header::IPV6_ICMPV6;
 		if (nextHeader == Ipv6Header::IPV6_ICMPV6) {
-
+			std::cout << "------YIBO: I am compressing a IPV6_ICMPV6 Header!" << std::endl;
 			hc1Header->SetHc1Encoding(0xFE);
 			hc1Header->SetTtl(ipHeader.GetHopLimit());
 			size += 3;
@@ -619,11 +627,12 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 			hc1Header->SetHc2HeaderPresent(false);
 		}
 
-		hc1Header->SetHc2HeaderPresent(false); //YIBO::Hc2 not support, no Next header.
+		hc1Header->SetHc2HeaderPresent(false); //YIBO::Hc2 not support, no UDP header.
 
 		headers->StoreHeader(SixLowPanHc1::GetTypeId(), hc1Header);
-		std::cout << "      - YIBO: IPV6_ICMPV6, compressed size = "
-				<< hc1Header->GetSerializedSize() << std::endl;
+		size = hc1Header->GetSerializedSize();
+		std::cout << "------YIBO: after HC1 compress, size = "
+				<< size  << std::endl;
 
 		//packet->AddHeader(*hc1Header);
 		//packet->AddHeader(*dynamic_cast<SixLowPanHc1 *>(hc1Header));
@@ -749,20 +758,35 @@ case SixLowPanHc1::HC1_PCIC:
 //			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
 
 	headers->StoreHeader(Ipv6Header::GetTypeId(), ipHeaderPtr);
-	std::cout << "---------------------------------------------------------------------------------" << std::endl;
-	NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
-	std::cout << "---------------------------------------------------------------------------------" << std::endl;
+	NS_LOG_DEBUG("---------------------------------------------------------------------------------" ); NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () ); NS_LOG_DEBUG( "---------------------------------------------------------------------------------" );
 }
 
 void SixLowPanNetDevice::FinalizePacketPreFrag(Ptr<Packet> packet,
 		Ptr<HeaderStorage> headers) {
-	if (headers->IsEmpty()) {
-		// YIBO:TODO: add the IPV6 dispatch header
-		headers->
 
+	Ptr<Packet> p = packet->Copy();
+
+	if (headers->IsEmpty()) {
+		//YIBO:TODO: add the IPV6 dispatch header
+		//YIBO:IPV6 DISPATCH Something cannot be compressed, use IPV6 DISPATCH,compress nothing, copy IPv6 header in packet
+		Header* hdr;
+		std::cout << "-YIBO: HeaderStorage is Empty!-" << std::endl;
+
+//		uint8_t dispatchRawValFrag1 = 0;
+//		SixLowPanDispatch::Dispatch_e dispatchValFrag1;
+//		SixLowPanDispatch* ipv6dispatch = new SixLowPanDispatch(SixLowPanDispatch::LOWPAN_NOTCOMPRESSED);
+
+		hdr = headers->GetHeader(SixLowPanDispatch::GetTypeId());
+		if (hdr) {
+			packet->AddHeader(*dynamic_cast<SixLowPanHc1 *>(hdr));
+		}
+//	    rime_hdr_len += SICSLOWPAN_IPV6_HDR_LEN;
+//	    memcpy(rime_ptr + rime_hdr_len, UIP_IP_BUF, UIP_IPH_LEN);
+//	    rime_hdr_len += UIP_IPH_LEN;
+//	    uncomp_hdr_len += UIP_IPH_LEN;
 		return;
 	}
-
+	std::cout << "-YIBO: FinalizaPacketPreFrag-" << std::endl;
 	Header* hdr;
 	hdr = headers->GetHeader(SixLowPanHc1::GetTypeId());
 	if (hdr) {
