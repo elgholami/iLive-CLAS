@@ -60,11 +60,11 @@ TypeId SixLowPanNetDevice::GetTypeId(void) {
 					MakeTraceSourceAccessor(&SixLowPanNetDevice::m_rxTrace)).AddTraceSource(
 					"Drop", "Drop IPv6 packet",
 					MakeTraceSourceAccessor(&SixLowPanNetDevice::m_dropTrace))
-					//        .AddAttribute ("Mtu", "The MAC-level Maximum Transmission Unit",
-					//                       UintegerValue (1500),
-					//                       MakeUintegerAccessor (&SixLowPanNetDevice::SetMtu,
-					//                                             &SixLowPanNetDevice::GetMtu),
-					//                                             MakeUintegerChecker<uint16_t> ())
+//					        .AddAttribute ("Mtu", "The MAC-level Maximum Transmission Unit",
+//					                       UintegerValue (102),
+//					                       MakeUintegerAccessor (&SixLowPanNetDevice::SetMtu,
+//					                                             &SixLowPanNetDevice::GetMtu),
+//					                                             MakeUintegerChecker<uint16_t> ())
 							;
 	//YIBO: Mtu should be added or not ? Should ask Khalid.
 	return tid;
@@ -161,6 +161,9 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	dispatchVal = SixLowPanDispatch::GetDispatchType(dispatchRawVal);
 	bool isPktDecompressed = false;
 
+	std::cout << ">>>YIBO::Start of ReceiveFromDevice<<<" << std::endl;
+	std::cout << "dispatchVal = " << dispatchVal << std::endl;
+
 	//YIBO: Print the packet received and length, which is from csma layer right now.
 //	NS_LOG_DEBUG ( "Packet received: " << *copyPkt );NS_LOG_DEBUG ( "Packet length:" << copyPkt->GetSize () );
 
@@ -186,9 +189,11 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	}
 
 	if (dispatchVal == SixLowPanDispatch::LOWPAN_FRAG1) {
+		std::cout << "CYB:: Receive a dispatch of LOWPAN_FRAG1" << std::endl;
 		isPktDecompressed = ProcessFragment(copyPkt, src, dst, true);
 	} else if (dispatchVal == SixLowPanDispatch::LOWPAN_FRAGN) {
-		isPktDecompressed = ProcessFragment(copyPkt, src, dst, true);
+		std::cout << "CYB:: Receive a dispatch of LOWPAN_FRAGN" << std::endl;
+		isPktDecompressed = ProcessFragment(copyPkt, src, dst, false);
 	} else {
 		switch (dispatchVal) {
 		case SixLowPanDispatch::LOWPAN_NOTCOMPRESSED:
@@ -198,7 +203,8 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 			//YIBO: TODO: Need to deliver the package to IPv6 network layer.
 			break;
 		case SixLowPanDispatch::LOWPAN_HC1:
-			NS_LOG_DEBUG ( "YIBO:Packet with HC1 compression:" << *copyPkt );
+			NS_LOG_DEBUG ( "YIBO::Packet with HC1 compression:" << *copyPkt );
+			std::cout << "YIBO::Packet with HC1 compression:" << *copyPkt << std::endl;
 			DecompressLowPanHc1(copyPkt, src, dst, ipHeaders);
 			isPktDecompressed = true;
 			break;
@@ -206,6 +212,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 			NS_LOG_DEBUG ( "Unsupported");
 			break;
 		default:
+			std::cout << "YIBO::problem Pkt:" << *copyPkt << std::endl;
 			NS_FATAL_ERROR("Unsupported 6LoWPAN encoding, exit due to error.");
 			break;
 		}
@@ -596,7 +603,8 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		//YIBO:: This is feasible if both src and dest ports are between
 		//YIBO:: SIXLOWPAN_UDP_PORT_MIN and SIXLOWPAN_UDP_PORT_MIN + 15
 		if (nextHeader == Ipv6Header::IPV6_UDP) {
-			std::cout << "-------YIBO: I am compressing a IPV6_UDP Header " << std::endl;
+			std::cout << "-------YIBO: I am compressing a IPV6_UDP Header "
+					<< std::endl;
 			hc1Header->SetHc2HeaderPresent(true);
 
 			UdpHeader udpHeader;
@@ -619,7 +627,8 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		//YIBO:: TODO: NextHeader == Ipv6Header::IPV6_ICMPV6;
 		if (nextHeader == Ipv6Header::IPV6_ICMPV6) {
-			std::cout << "------YIBO: I am compressing a IPV6_ICMPV6 Header!" << std::endl;
+			std::cout << "------YIBO: I am compressing a IPV6_ICMPV6 Header!"
+					<< std::endl;
 			hc1Header->SetHc1Encoding(0xFE);
 			hc1Header->SetTtl(ipHeader.GetHopLimit());
 			size += 3;
@@ -631,8 +640,8 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		headers->StoreHeader(SixLowPanHc1::GetTypeId(), hc1Header);
 		size = hc1Header->GetSerializedSize();
-		std::cout << "------YIBO: after HC1 compress, size = "
-				<< size  << std::endl;
+		std::cout << "------YIBO: after HC1 compress, size = " << size
+				<< std::endl;
 
 		//packet->AddHeader(*hc1Header);
 		//packet->AddHeader(*dynamic_cast<SixLowPanHc1 *>(hc1Header));
@@ -758,7 +767,7 @@ case SixLowPanHc1::HC1_PCIC:
 //			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
 
 	headers->StoreHeader(Ipv6Header::GetTypeId(), ipHeaderPtr);
-	NS_LOG_DEBUG("---------------------------------------------------------------------------------" ); NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () ); NS_LOG_DEBUG( "---------------------------------------------------------------------------------" );
+	NS_LOG_DEBUG("---------------------------------------------------------------------------------" ); NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () );NS_LOG_DEBUG( "---------------------------------------------------------------------------------" );
 }
 
 void SixLowPanNetDevice::FinalizePacketPreFrag(Ptr<Packet> packet,
@@ -767,7 +776,7 @@ void SixLowPanNetDevice::FinalizePacketPreFrag(Ptr<Packet> packet,
 	Ptr<Packet> p = packet->Copy();
 
 	if (headers->IsEmpty()) {
-		//YIBO:TODO: add the IPV6 dispatch header
+		//YIBO:TODO: add the IPV6 dispatch header, haven't used yet.
 		//YIBO:IPV6 DISPATCH Something cannot be compressed, use IPV6 DISPATCH,compress nothing, copy IPv6 header in packet
 		Header* hdr;
 		std::cout << "-YIBO: HeaderStorage is Empty!-" << std::endl;
@@ -804,6 +813,7 @@ void SixLowPanNetDevice::FinalizePacketPostFrag(Ptr<Packet> packet,
 void SixLowPanNetDevice::FinalizePacketIp(Ptr<Packet> packet,
 		Ptr<HeaderStorage> headers) {
 	if (headers->IsEmpty()) {
+		//YIBO: What should do here?
 		return;
 	}
 
@@ -821,6 +831,7 @@ void SixLowPanNetDevice::FinalizePacketIp(Ptr<Packet> packet,
 
 	hdr = headers->GetHeader(Icmpv6Header::GetTypeId());
 	if (hdr) {
+		std::cout << "-YIBO: FinalizaPacketIp-Icmpv6Header" << std::endl;
 		packet->AddHeader(*dynamic_cast<Icmpv6Header *>(hdr));
 	}
 
@@ -841,10 +852,13 @@ void SixLowPanNetDevice::DoFragmentation(Ptr<Packet> packet,
 	uint16_t offsetData = 0;
 	uint16_t offset = 0;
 	uint16_t l2Mtu = GetMtu();
-	uint32_t packetSize = packet->GetSerializedSize();
+//	uint32_t packetSize = packet->GetSerializedSize();
+	//YIBO:: Use the Size of buffer not Serialized Size.
+	uint32_t packetSize = packet->GetSize();
 	uint32_t origPacketSize = packetSize + origHdrSize;
 	uint32_t cmpHdrSizePre = headersPre->GetHeaderSize();
 	uint32_t cmpHdrSizePost = headersPost->GetHeaderSize();
+	std::cout <<"packetSize - " << packetSize << ", cmpHdrSizePre -" << cmpHdrSizePre << ", cmpHdrSizePost -" << cmpHdrSizePost << std::endl;
 
 	UniformVariable cd(0, 65535);
 	uint16_t tag;
@@ -862,10 +876,11 @@ void SixLowPanNetDevice::DoFragmentation(Ptr<Packet> packet,
 			"6LoWPAN: can not fragment, 6LoWPAN headers are bigger than MTU");
 
 	size = (l2Mtu - frag1Hdr.GetSerializedSize() - cmpHdrSizePre
-			- cmpHdrSizePost) & 0x7;
+			- cmpHdrSizePost) & 0x1F;
 
 	frag1Hdr.SetDatagramSize(origPacketSize);
 
+	NS_LOG_LOGIC ("Fragment 1Hdr creation - " << offset << ", " << p->GetSerializedSize() );
 	Ptr<Packet> fragment1 = p->CreateFragment(offsetData, size);
 	offset += size + origHdrSize;
 	offsetData += size;
@@ -875,6 +890,7 @@ void SixLowPanNetDevice::DoFragmentation(Ptr<Packet> packet,
 	FinalizePacketPostFrag(fragment1, headersPost);
 	listFragments.push_back(fragment1);
 
+
 	bool moreFrag = true;
 	do {
 		SixLowPanFragN fragNHdr;
@@ -882,16 +898,16 @@ void SixLowPanNetDevice::DoFragmentation(Ptr<Packet> packet,
 		fragNHdr.SetDatagramSize(origPacketSize);
 		fragNHdr.SetDatagramOffset((offset) >> 3);
 
-		size = (l2Mtu - fragNHdr.GetSerializedSize() - cmpHdrSizePost) & 0x7;
+		size = (l2Mtu - fragNHdr.GetSerializedSize() - cmpHdrSizePost) & 0x2F;
 
 		if ((offsetData + size) > packetSize) {
 			size = packetSize - offsetData;
 			moreFrag = false;
 		}
 
-		NS_LOG_LOGIC ("Fragment creation - " << offset << ", " << offset );
+		NS_LOG_LOGIC ("Fragment NHdr creation - " << offset << ", " << size << ", buffer size-" << p->GetSize() );
 		Ptr<Packet> fragment = p->CreateFragment(offsetData, size);
-		NS_LOG_LOGIC ("Fragment created - " << offset << ", " << fragment->GetSize () );
+		NS_LOG_LOGIC ("Fragment NHdr created - " << offset << ", " << fragment->GetSize () );
 
 		offset += size;
 		offsetData += size;
@@ -925,6 +941,7 @@ bool SixLowPanNetDevice::ProcessFragment(Ptr<Packet>& packet,
 		p->CopyData(&dispatchRawValFrag1, sizeof(dispatchRawValFrag1));
 		dispatchValFrag1 = SixLowPanDispatch::GetDispatchType(
 				dispatchRawValFrag1);
+		std::cout<< "<<ProcessFragment>>, dispatchValFrag1 = " << dispatchValFrag1 << std::endl;
 		switch (dispatchValFrag1) {
 		case SixLowPanDispatch::LOWPAN_NOTCOMPRESSED:
 			NS_LOG_DEBUG ( "Packet without compression:" << *p );

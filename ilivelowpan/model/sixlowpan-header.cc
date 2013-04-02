@@ -538,8 +538,10 @@ void SixLowPanFrag1::Serialize(Buffer::Iterator start) const {
 	Buffer::Iterator i = start;
 
 	uint16_t temp = m_datagramSize | (uint16_t(LOWPAN_FRAG1) << 8);
+	i.WriteU8(LOWPAN_FRAG1);
 	i.WriteU16(temp);
 	i.WriteU16(m_datagramTag);
+	std::cout<<"Serialize of Frag1"<<std::endl;
 }
 
 uint32_t SixLowPanFrag1::Deserialize(Buffer::Iterator start) {
@@ -609,6 +611,7 @@ void SixLowPanFragN::Serialize(Buffer::Iterator start) const {
 	i.WriteU16(temp);
 	i.WriteU16(m_datagramTag);
 	i.WriteU8(m_datagramOffset);
+	std::cout<<"Serialize of FragN"<<std::endl;
 }
 
 uint32_t SixLowPanFragN::Deserialize(Buffer::Iterator start) {
