@@ -526,8 +526,11 @@ SixLowPanDispatch::Dispatch_e SixLowPanFrag1::GetDispatchType(void) const {
 }
 
 void SixLowPanFrag1::Print(std::ostream & os) const {
-	os << "datagram size " << m_datagramSize;
-	os << "datagram tag " << m_datagramTag;
+	uint8_t encoding;
+	encoding = 0xc0;
+	os << "dispatch " << int(encoding);
+	os << ", datagram size " << m_datagramSize;
+	os << ", datagram tag " << m_datagramTag;
 }
 
 uint32_t SixLowPanFrag1::GetSerializedSize() const {
@@ -537,16 +540,15 @@ uint32_t SixLowPanFrag1::GetSerializedSize() const {
 void SixLowPanFrag1::Serialize(Buffer::Iterator start) const {
 	Buffer::Iterator i = start;
 
-	uint16_t temp = m_datagramSize | (uint16_t(LOWPAN_FRAG1) << 8);
-	i.WriteU8(LOWPAN_FRAG1);
+	uint16_t temp = (m_datagramSize << 8) | uint16_t(LOWPAN_FRAG1);
 	i.WriteU16(temp);
 	i.WriteU16(m_datagramTag);
-	std::cout<<"Serialize of Frag1"<<std::endl;
+	std::cout<<"Serialize of Frag1 = "<< (temp) <<std::endl;
 }
 
 uint32_t SixLowPanFrag1::Deserialize(Buffer::Iterator start) {
 	Buffer::Iterator i = start;
-	m_datagramSize = i.ReadU16() & 0x7FF;
+	m_datagramSize = (i.ReadU16()>>8) & 0x7FF;
 	m_datagramTag = i.ReadU16();
 	return GetSerializedSize();
 }
@@ -596,8 +598,8 @@ TypeId SixLowPanFragN::GetInstanceTypeId(void) const {
 
 void SixLowPanFragN::Print(std::ostream & os) const {
 	os << "datagram size " << m_datagramSize;
-	os << "datagram tag " << m_datagramTag;
-	os << "datagram offset " << m_datagramOffset;
+	os << ", tag " << m_datagramTag;
+	os << ", offset " << m_datagramOffset;
 }
 
 uint32_t SixLowPanFragN::GetSerializedSize() const {
@@ -607,17 +609,17 @@ uint32_t SixLowPanFragN::GetSerializedSize() const {
 void SixLowPanFragN::Serialize(Buffer::Iterator start) const {
 	Buffer::Iterator i = start;
 
-	uint16_t temp = m_datagramSize | (uint16_t(LOWPAN_FRAGN) << 8);
+	uint16_t temp = (m_datagramSize << 8) | uint16_t(LOWPAN_FRAGN);
 	i.WriteU16(temp);
 	i.WriteU16(m_datagramTag);
 	i.WriteU8(m_datagramOffset);
-	std::cout<<"Serialize of FragN"<<std::endl;
+//	std::cout<<"Serialize of FragN"<<std::endl;
 }
 
 uint32_t SixLowPanFragN::Deserialize(Buffer::Iterator start) {
 	Buffer::Iterator i = start;
 
-	m_datagramSize = i.ReadU16();
+	m_datagramSize = (i.ReadU16()>>8) & 0x7ff;
 	m_datagramTag = i.ReadU16();
 	m_datagramOffset = i.ReadU8();
 
