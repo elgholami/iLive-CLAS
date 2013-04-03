@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
 	stackHelper.PrintRoutingTable(n1);
 
 	/* Create a Ping6 application to send ICMPv6 echo request from n0 to n1 via r */
-	uint32_t packetSize = 200;
+	uint32_t packetSize = 500;
 	uint32_t maxPacketCount = 50;
 	Time interPacketInterval = Seconds(1.);
 	Ping6Helper ping6;
