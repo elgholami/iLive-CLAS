@@ -426,15 +426,15 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 	Ptr<HeaderStorage> headersPre = Create<HeaderStorage>();
 	Ptr<HeaderStorage> headersPost = Create<HeaderStorage>();
 	bool ret = false;
-
+	NS_LOG_DEBUG( "***Prepare to Send a 6LoWPAN packet*** " );
 	NS_LOG_DEBUG( "***CYB:origPacketSize = " << origPacketSize);
 	origHdrSize += CompressLowPanHc1(packet, m_port->GetAddress(), dest,
 			headersPre);
 	NS_LOG_DEBUG( "***CYB:origHdrSize = " << origHdrSize);
 	//YIBO:: create new function compressLowPanHc6...here
 
-	if (origPacketSize > GetMtu()) {
-		//YIBO:: fragment is needed, Mtu is smaller than the packet. Test requested.
+	if (origPacketSize > 102) {
+		//YIBO:: fragment is needed, Mtu of 802.15.4 is smaller than the packet. Test requested.
 		std::list<Ptr<Packet> > fragmentList;
 		std::cout << "***YIBO: DoFragmentation of Send! Need Frag.***" << std::endl;
 		NS_LOG_DEBUG( "***YIBO: DoFragmentation of Send! Need Frag.***");
@@ -459,7 +459,7 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 		//YIBO:: Fix the protocolNumber to UIP_ETHTYPE_802154, like ravenusb. So Wireshark can work.
 		ret = m_port->Send(packet, dest, 0x809a);
 	}
-
+	NS_LOG_DEBUG( "***End of Sending a 6LoWPAN packet*** " );
 	return ret;
 }
 
@@ -548,7 +548,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 	Ipv6Header ipHeader;
 	SixLowPanHc1* hc1Header = new SixLowPanHc1;
 	uint32_t size = 0;
-	std::cout << *packet << src << dst << std::endl;
+	NS_LOG_DEBUG( "SixLowPanNetDevice::CompressLowPanHc1_B " << *packet << src << dst );
 
 	if (packet->PeekHeader(ipHeader) != 0) {
 		packet->RemoveHeader(ipHeader);
@@ -613,7 +613,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		uint8_t nextHeader = ipHeader.GetNextHeader(); //YIBO:: Return a next header number.
 		hc1Header->SetNextHeader(nextHeader); //YIBO:: UDP;TCP;ICMPv6
-		std::cout << "------YIBO: nextHeader = "<< (uint16_t)nextHeader << std::endl;
+		NS_LOG_DEBUG( "------YIBO: nextHeader = "<< (uint16_t)nextHeader);
 
 		//YIBO:: TODO: Add the proper getter/setters to UdpHeader and finalize this.
 		//YIBO:: We do only full compression.
@@ -661,6 +661,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 				<< std::endl;
 
 		packet->AddHeader(*hc1Header);
+		NS_LOG_DEBUG( "SixLowPanNetDevice::CompressLowPanHc1_A " << *packet);
 
 		return size; //YIBO:: Only compress IPv6 header.
 		//packet->AddHeader(*hc1Header);
