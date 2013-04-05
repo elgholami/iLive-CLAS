@@ -26,7 +26,8 @@
 // //             ====|_|====
 // //                router
 // //
-// // - Tracing of queues and packet receptions to file "example-sixlowpan.tr"
+// // - Tracing of queues and packet receptions to file "example-udp-sixlowpan.tr"
+// // - An example for using to test UDP and 6LoWPAN.
 #include <fstream>
 #include "ns3/core-module.h"
 #include "ns3/internet-module.h"
