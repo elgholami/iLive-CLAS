@@ -42,7 +42,7 @@
 #include <ns3/error-model.h>
 using namespace ns3;
 
-NS_LOG_COMPONENT_DEFINE("ExampleSixlowpan");
+NS_LOG_COMPONENT_DEFINE("ExampleUdpSixlowpan");
 
 /**
  * \class StackHelper
@@ -99,11 +99,9 @@ int main(int argc, char** argv) {
 //LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_ALL);
 //#endif
 
-	LogComponentEnable("ExampleSixlowpan", LOG_LEVEL_ALL);
+	LogComponentEnable("ExampleUdpSixlowpan", LOG_LEVEL_ALL);
 //	LogComponentEnable("SixLowPanHelper", LOG_LEVEL_ALL);
-//	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_DEBUG);
-	LogComponentEnable ("Ping6Application", LOG_LEVEL_INFO);
-
+	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_DEBUG);
 
 	CommandLine cmd;
 	cmd.Parse(argc, argv);
@@ -146,51 +144,48 @@ int main(int argc, char** argv) {
 	//Why need to define three NetDeviceContainer valuables.
 
 	NS_LOG_INFO ("Create networks and assign IPv6 Addresses.");
+	Address serverAddress;
 	Ipv6AddressHelper ipv6;
-	ipv6.SetBase(Ipv6Address("2013:1::"), Ipv6Prefix(64));
+	ipv6.SetBase("2001:0000:f00d:cafe::", Ipv6Prefix(64));
 	Ipv6InterfaceContainer i1 = ipv6.Assign(six1);
-	//i1.SetRouter(1, true);
-	i1.SetRouter(2, true);
+
 
 	stackHelper.PrintRoutingTable(r);
 	stackHelper.PrintRoutingTable(n0);
 	stackHelper.PrintRoutingTable(n1);
 
-	/* Create a Ping6 application to send ICMPv6 echo request from n0 to n1 via r */
-	uint32_t packetSize = 100;
-	uint32_t maxPacketCount = 50;
-	Time interPacketInterval = Seconds(1.);
-	Ping6Helper ping6;
+	//YIBO:: Build UDP client-server application here.
+	serverAddress = Address(i1.GetAddress(1, 1));
 
-	//ping6.SetLocal(i1.GetAddress(1, 1));
-	ping6.SetLocal(i1.GetAddress(0, 1));
+	NS_LOG_INFO ("Create Applications.");
+	//
+	// Create one udpServer applications on node one.
+	//
+	uint16_t port = 4000;
+	UdpServerHelper server(port);
+	ApplicationContainer apps = server.Install(net1.Get(1));
+	apps.Start(Seconds(1.0));
+	apps.Stop(Seconds(15.0));
 
-	std::cout << "     - Packet now net interface index1-adress index1: " << i1.GetAddress(1, 1)
-			<< std::endl;
-	std::cout << "     - Packet now net interface index2-adress index1: " << i1.GetAddress(2, 1)
-			<< std::endl;
-	std::cout << "     - Packet now net interface index0-adress index1: " << i1.GetAddress(0, 1)
-			<< std::endl;
-
-	//ping6.SetRemote(i1.GetAddress(2, 1));
-	ping6.SetRemote(i1.GetAddress(1, 1));
-
-	//ping6.SetIfIndex (i1.GetInterfaceIndex (0));
-	//ping6.SetRemote (Ipv6Address::GetAllNodesMulticast ());
-
-	ping6.SetAttribute("MaxPackets", UintegerValue(maxPacketCount));
-	ping6.SetAttribute("Interval", TimeValue(interPacketInterval));
-	ping6.SetAttribute("PacketSize", UintegerValue(packetSize));
-	//ApplicationContainer apps = ping6.Install(net1.Get(1));
-	ApplicationContainer apps = ping6.Install(net1.Get(0));
-
-	std::cout << "      - Packet now: " << net1.Get(0) << std::endl;
-	apps.Start(Seconds(5.0));
-	apps.Stop(Seconds(10.0));
+	//
+	// Create one UdpClient application to send UDP datagrams from node zero to
+	// node one.
+	//
+	uint32_t MaxPacketSize = 30;
+	Time interPacketInterval = Seconds(2.05);
+	uint32_t maxPacketCount = 320;
+	UdpClientHelper client(serverAddress, port);
+	client.SetAttribute("MaxPackets", UintegerValue(maxPacketCount));
+	client.SetAttribute("Interval", TimeValue(interPacketInterval));
+	client.SetAttribute("PacketSize", UintegerValue(MaxPacketSize));
+	apps = client.Install(net1.Get(0));
+//	apps = client.Install(net1.Get(2));
+	apps.Start(Seconds(2.0));
+	apps.Stop(Seconds(15.0));
 
 	AsciiTraceHelper ascii;
-	csma.EnableAsciiAll(ascii.CreateFileStream("example-sixlowpan.tr"));
-	csma.EnablePcapAll(std::string("example-sixlowpan"), true);
+	csma.EnableAsciiAll(ascii.CreateFileStream("example-udp-sixlowpan.tr"));
+	csma.EnablePcapAll(std::string("example-udp-sixlowpan"), true);
 
 	Simulator::Stop(Seconds(100));
 	NS_LOG_INFO ("Run Simulation.");
