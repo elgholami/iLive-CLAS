@@ -101,8 +101,8 @@ int main(int argc, char** argv) {
 
 	LogComponentEnable("ExampleSixlowpan", LOG_LEVEL_ALL);
 //	LogComponentEnable("SixLowPanHelper", LOG_LEVEL_ALL);
-//	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_LOGIC);
-	LogComponentEnable ("Ping6Application", LOG_LEVEL_INFO);
+	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_DEBUG);
+//	LogComponentEnable ("Ping6Application", LOG_LEVEL_INFO);
 
 
 	CommandLine cmd;
