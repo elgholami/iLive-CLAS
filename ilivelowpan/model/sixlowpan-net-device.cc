@@ -451,8 +451,8 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 		ret = !err;
 	} else {
 		NS_LOG_DEBUG( "***YIBO: No Need for Frag.***");
-//		FinalizePacketPreFrag(packet, headersPre);
-//		FinalizePacketPostFrag(packet, headersPost);
+		FinalizePacketPreFrag(packet, headersPre);
+		FinalizePacketPostFrag(packet, headersPost);
 
 		NS_LOG_DEBUG( "CYB:SixLowPanNetDevice::Send " << m_node->GetId () << " " << *packet );
 		// ret = m_port->Send (packet, dest, protocolNumber);
@@ -557,6 +557,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		std::cout << "***YIBO: original header size = " << size << std::endl;
 
 		hc1Header->SetHopLimit(ipHeader.GetHopLimit());
+		NS_LOG_DEBUG( "SixLowPanNetDevice::HopLimit/LLT = "<< int(hc1Header->GetHopLimit()));
 
 		uint8_t bufOne[16];
 		uint8_t bufTwo[16];
@@ -569,16 +570,20 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 		//YIBO:: if AddrSrc in packet and src are equal. isSrcSrc = true.
 		if (srcAddr.IsLinkLocal() && isSrcSrc) {
 			hc1Header->SetSrcCompression(SixLowPanHc1::HC1_PCIC);
+			NS_LOG_DEBUG( " -SrcCompression:HC1_PCIC::0x11- ");
 		} else if (srcAddr.IsLinkLocal()) {
 			hc1Header->SetSrcCompression(SixLowPanHc1::HC1_PCII);
 			hc1Header->SetSrcInterface(bufOne + 8);
+			NS_LOG_DEBUG( " -SrcCompression:HC1_PCII::0x10- ");
 		} else if (isSrcSrc) {
 			hc1Header->SetSrcCompression(SixLowPanHc1::HC1_PIIC);
 			hc1Header->SetSrcPrefix(bufOne);
+			NS_LOG_DEBUG( " -SrcCompression:HC1_PIIC::0x01- ");
 		} else {
 			hc1Header->SetSrcCompression(SixLowPanHc1::HC1_PIII);
 			hc1Header->SetSrcInterface(bufOne + 8);
 			hc1Header->SetSrcPrefix(bufOne);
+			NS_LOG_DEBUG( " -SrcCompression:HC1_PIII::0x00- ");
 		}
 
 		Ipv6Address dstAddr = ipHeader.GetDestinationAddress();
@@ -590,38 +595,45 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 
 		if (dstAddr.IsLinkLocal() && isDstDst) {
 			hc1Header->SetDstCompression(SixLowPanHc1::HC1_PCIC);
+			NS_LOG_DEBUG( " -DstCompression:HC1_PCIC::0x11- ");
 		} else if (dstAddr.IsLinkLocal()) {
 			hc1Header->SetDstCompression(SixLowPanHc1::HC1_PCII);
 			hc1Header->SetDstInterface(bufOne + 8);
+			NS_LOG_DEBUG( " -DstCompression:HC1_PCII::0x10- ");
 		} else if (isDstDst) {
 			hc1Header->SetDstCompression(SixLowPanHc1::HC1_PIIC);
 			hc1Header->SetDstPrefix(bufOne);
+			NS_LOG_DEBUG( " -DstCompression:HC1_PIIC::0x01- ");
 		} else {
 			hc1Header->SetDstCompression(SixLowPanHc1::HC1_PIII);
 			hc1Header->SetDstInterface(bufOne + 8);
 			hc1Header->SetDstPrefix(bufOne);
+			NS_LOG_DEBUG( " -DstCompression:HC1_PIII::0x00- ");
 		}
 
 		if ((ipHeader.GetFlowLabel() == 0)
 				&& (ipHeader.GetTrafficClass() == 0)) {
 			hc1Header->SetTcflCompression(true); //YIBO:: tcfl Traffic class field - 8 bit of ipv6 header
+			NS_LOG_DEBUG( " -HC1 Compression:tcfl::0x1- ");
 		} else {
 			hc1Header->SetTcflCompression(false);
 			hc1Header->SetTrafficClass(ipHeader.GetTrafficClass());
 			hc1Header->SetFlowLabel(ipHeader.GetFlowLabel());
+			NS_LOG_DEBUG( " -HC1 Compression:tcfl::0x0- ");
 		}
 
 		uint8_t nextHeader = ipHeader.GetNextHeader(); //YIBO:: Return a next header number.
 		hc1Header->SetNextHeader(nextHeader); //YIBO:: UDP;TCP;ICMPv6
 		NS_LOG_DEBUG( "------YIBO: nextHeader = "<< (uint16_t)nextHeader);
 
-		//YIBO:: TODO: Add the proper getter/setters to UdpHeader and finalize this.
+		//YIBO:: Add the proper getter/setters to UdpHeader and finalize this.
 		//YIBO:: We do only full compression.
 		//YIBO:: This is feasible if both src and dest ports are between
 		//YIBO:: SIXLOWPAN_UDP_PORT_MIN and SIXLOWPAN_UDP_PORT_MIN + 15
 		if (nextHeader == Ipv6Header::IPV6_UDP) {
 			std::cout << "-------YIBO: I am compressing a IPV6_UDP Header "
 					<< std::endl;
+			NS_LOG_DEBUG( " -HC1 Compression:last 3 bits:011- ");
 			hc1Header->SetHc2HeaderPresent(true);
 
 			UdpHeader udpHeader;
@@ -634,34 +646,31 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 			hc1Header->SetUdpSrcPort(udpHeader.GetSourcePort());
 			hc1Header->SetUdpDstPort(udpHeader.GetDestinationPort());
 			hc1Header->SetUdpLength(udpHeader.GetSerializedSize());
-			//hc1Header->SetUdpChecksum(udpHeader.Get);
+			hc1Header->SetUdpChecksum(udpHeader.GetChecksums());
 
 			size += 7;
 
-		} else {
-			hc1Header->SetHc2HeaderPresent(false);
 		}
-
-		//YIBO:: TODO: NextHeader == Ipv6Header::IPV6_ICMPV6;
-		if (nextHeader == Ipv6Header::IPV6_ICMPV6) {
+		else if (nextHeader == Ipv6Header::IPV6_ICMPV6) {
 			std::cout << "------YIBO: I am compressing a IPV6_ICMPV6 Header!"
 					<< std::endl;
-			hc1Header->SetHc1Encoding(0xFE);
+			NS_LOG_DEBUG( " -HC1 Compression:last 3 bits:110- ");
+//			hc1Header->SetHc1Encoding(0xFE);
+			hc1Header->SetHc2HeaderPresent(false);
 			hc1Header->SetTtl(ipHeader.GetHopLimit());
 			size += 3;
-		} else {
+		}
+		else {
 			hc1Header->SetHc2HeaderPresent(false);
 		}
 
-		hc1Header->SetHc2HeaderPresent(false); //YIBO::Hc2 not support, no UDP header.
-
-		headers->StoreHeader(SixLowPanHc1::GetTypeId(), hc1Header);
 		size = hc1Header->GetSerializedSize();
+		//Yibo:: Store the Hc1 Header to headersPre. Suspicious item.
+		headers->StoreHeader(SixLowPanHc1::GetTypeId(), hc1Header);
+
 		std::cout << "------YIBO: after HC1 compress, size = " << size
 				<< std::endl;
 
-		packet->AddHeader(*hc1Header);
-		NS_LOG_DEBUG( "SixLowPanNetDevice::CompressLowPanHc1_A " << *packet);
 
 		return size; //YIBO:: Only compress IPv6 header.
 		//packet->AddHeader(*hc1Header);
@@ -785,8 +794,21 @@ case SixLowPanHc1::HC1_PCIC:
 //			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
 
 	headers->StoreHeader(Ipv6Header::GetTypeId(), ipHeaderPtr);
+
+
 	NS_LOG_DEBUG("---------------------------------------------------------------------------------" );
-	NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
+	if(encoding.GetNextHeader()==Ipv6Header::IPV6_UDP){
+		UdpHeader* udpHeaderPtr = new UdpHeader;
+		udpHeaderPtr->SetSourcePort(encoding.GetUdpSrcPort());
+		udpHeaderPtr->SetDestinationPort(encoding.GetUdpDstPort());
+		udpHeaderPtr->EnableChecksums();
+
+		headers->StoreHeader(UdpHeader::GetTypeId(), udpHeaderPtr);
+		NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *udpHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
+	}
+	else{
+		NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
+	}
 	NS_LOG_DEBUG( "---------------------------------------------------------------------------------" );
 	std::cout << "<<<<<<<<---END of DecompressLowPanHc1--->>>>>>>>" << std::endl;
 }

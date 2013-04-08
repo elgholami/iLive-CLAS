@@ -19,7 +19,6 @@
  */
 
 // TODO:: HC6
-
 #include "ns3/assert.h"
 #include "ns3/log.h"
 
@@ -118,17 +117,26 @@ TypeId SixLowPanHc1::GetInstanceTypeId(void) const {
 
 void SixLowPanHc1::Print(std::ostream & os) const {
 	uint8_t encoding;
-	encoding = m_srcCompression;
+	uint8_t cyb_hc2encoding;
+	encoding = this->m_srcCompression;
 	encoding <<= 2;
-	encoding |= m_dstCompression;
+	encoding |= this->m_dstCompression;
 	encoding <<= 1;
-	encoding |= m_tcflCompression;
+	encoding |= this->m_tcflCompression;
 	encoding <<= 2;
-	encoding |= m_nextHeaderCompression;
+	encoding |= this->m_nextHeaderCompression;
 	encoding <<= 1;
-	encoding |= m_hc2HeaderPresent;
+	encoding |= this->m_hc2HeaderPresent;
 
-	os << "encoding " << int(encoding) << ", hopLimit " << int(m_hopLimit);
+	cyb_hc2encoding = 0xE0;
+
+	os << "HC1_encoding " << int(encoding) << ", hopLimit "
+			<< int(this->m_hopLimit);
+//	os << "HC1_encoding " << (uint16_t)encoding << ", hopLimit " << (uint16_t)this->m_hopLimit;
+	if (m_nextHeaderCompression == HC1_UDP) {
+//		os << ", Hc2_encoding " << (uint16_t) m_hcUdpEncoding;
+		os << ", Hc2_encoding " << int(cyb_hc2encoding);
+	}
 }
 
 uint32_t SixLowPanHc1::GetSerializedSize() const {
@@ -169,25 +177,51 @@ uint32_t SixLowPanHc1::GetSerializedSize() const {
 		serializedSize++;
 	}
 
+	if (m_nextHeaderCompression == HC1_UDP) {
+		serializedSize += 3;
+	}
+
 	return serializedSize;
 }
 
 void SixLowPanHc1::Serialize(Buffer::Iterator start) const {
 	Buffer::Iterator i = start;
-	uint8_t encoding;
-	encoding = m_srcCompression;
+	uint8_t encoding = 0;
+	encoding = this->m_srcCompression;
 	encoding <<= 2;
-	encoding |= m_dstCompression;
+	encoding |= this->m_dstCompression;
 	encoding <<= 1;
-	encoding |= m_tcflCompression;
+	encoding |= this->m_tcflCompression;
 	encoding <<= 2;
-	encoding |= m_nextHeaderCompression;
+	encoding |= this->m_nextHeaderCompression;
 	encoding <<= 1;
-	encoding |= m_hc2HeaderPresent;
+	encoding |= this->m_hc2HeaderPresent;
+	std::cout << "############ " << (int) encoding << std::endl;
+	std::cout << "1###########  " << (int) m_srcCompression << std::endl;
+	std::cout << "2###########  " << (int) m_dstCompression << std::endl;
+	std::cout << "3###########  " << (int) m_tcflCompression << std::endl;
+	std::cout << "4###########  " << (int) m_nextHeaderCompression << std::endl;
+	std::cout << "5###########  " << (int) m_hc2HeaderPresent << std::endl;
 
 	i.WriteU8(LOWPAN_HC1);
 	i.WriteU8(encoding);
+
+	//YIBO::Put HC2 header here.
+	if (m_nextHeaderCompression == HC1_UDP) {
+		i.WriteU8(m_hcUdpEncoding);
+	}
+
 	i.WriteU8(m_hopLimit);
+
+	//YIBO::Put HC2 3 bytes compressed UDP header here.
+	if (m_nextHeaderCompression == HC1_UDP) {
+		uint8_t compressedUdpHeader;
+		compressedUdpHeader = ((uint8_t) (m_hcUdpSrcPort << 4))
+				+ ((uint8_t) m_hcUdpDstPort);
+		i.WriteU8(compressedUdpHeader);
+		i.WriteU16(m_hcUdpChecksum);
+	}
+
 	switch (m_srcCompression) {
 	case HC1_PIII:
 		for (int j = 0; j < 8; j++) {
@@ -247,23 +281,43 @@ void SixLowPanHc1::Serialize(Buffer::Iterator start) const {
 	}
 
 	//YIBO:TODO: HC2 is not yet supported. Should be.
-	NS_ASSERT_MSG( m_hc2HeaderPresent != true,
-			"Can not compress HC2, exiting. Very sorry.");
+//	NS_ASSERT_MSG( m_hc2HeaderPresent != true,
+//			"Can not compress HC2, exiting. Very sorry.");
 }
 
 uint32_t SixLowPanHc1::Deserialize(Buffer::Iterator start) {
 	Buffer::Iterator i = start;
 	uint32_t serializedSize = 3;
 
-	i.Next();
 	uint8_t encoding = i.ReadU8();
-	m_hopLimit = i.ReadU8();
+	encoding = i.ReadU8();
 
 	m_srcCompression = LowPanHc1Addr_e(encoding >> 6);
 	m_dstCompression = LowPanHc1Addr_e((encoding >> 4) & 0x3);
 	m_tcflCompression = (encoding >> 3) & 0x1;
 	m_nextHeaderCompression = LowPanHc1NextHeader_e((encoding >> 1) & 0x3);
 	m_hc2HeaderPresent = encoding & 0x1;
+
+	switch (m_nextHeaderCompression) {
+	case HC1_NC:
+		m_nextHeader = i.ReadU8();
+		serializedSize++;
+		break;
+	case HC1_TCP:
+		m_nextHeader = Ipv6Header::IPV6_TCP;
+		break;
+	case HC1_UDP:
+		m_nextHeader = Ipv6Header::IPV6_UDP;
+		i.ReadU8();
+		break;
+	case HC1_ICMP:
+		m_nextHeader = Ipv6Header::IPV6_ICMPV6;
+		break;
+	}
+
+	m_hopLimit = i.ReadU8();
+
+	//TODO:
 
 	switch (m_srcCompression) {
 	case HC1_PIII:
@@ -326,29 +380,14 @@ uint32_t SixLowPanHc1::Deserialize(Buffer::Iterator start) {
 		serializedSize += 4;
 	}
 
-	switch (m_nextHeaderCompression) {
-	case HC1_NC:
-		m_nextHeader = i.ReadU8();
-		serializedSize++;
-		break;
-	case HC1_TCP:
-		m_nextHeader = Ipv6Header::IPV6_TCP;
-		break;
-	case HC1_UDP:
-		m_nextHeader = Ipv6Header::IPV6_UDP;
-		break;
-	case HC1_ICMP:
-		m_nextHeader = Ipv6Header::IPV6_ICMPV6;
-		break;
-	}
 	// TODO end this crap
-	if (m_nextHeaderCompression == HC1_NC) {
-	} else if (m_nextHeaderCompression == HC1_UDP) {
-		m_nextHeader = UdpL4Protocol::PROT_NUMBER;
-	} else {
-		NS_ASSERT_MSG( m_hc2HeaderPresent != true,
-				"Can not compress HC2, exiting. Very sorry.");
-	}
+//	if (m_nextHeaderCompression == HC1_NC) {
+//	} else if (m_nextHeaderCompression == HC1_UDP) {
+//		m_nextHeader = UdpL4Protocol::PROT_NUMBER;
+//	} else {
+//		NS_ASSERT_MSG( m_hc2HeaderPresent != true,
+//				"Can not compress HC2, exiting. Very sorry.");
+//	}
 
 	return GetSerializedSize();
 }
@@ -358,7 +397,7 @@ SixLowPanDispatch::Dispatch_e SixLowPanHc1::GetDispatchType(void) const {
 }
 
 void SixLowPanHc1::SetHopLimit(uint8_t limit) {
-	m_hopLimit = limit;
+	this->m_hopLimit = limit;
 }
 
 uint8_t SixLowPanHc1::GetHopLimit() const {
@@ -484,17 +523,26 @@ void SixLowPanHc1::SetHc1Encoding(uint8_t hc1Encoding) {
 	m_hc1Encoding = hc1Encoding;
 }
 
-void SixLowPanHc1::SetUdpEncoding(uint8_t UdpEncoding){
+void SixLowPanHc1::SetUdpEncoding(uint8_t UdpEncoding) {
 	m_hcUdpEncoding = UdpEncoding;
 }
-void SixLowPanHc1::SetUdpSrcPort(uint16_t UdpSrcPort){
+void SixLowPanHc1::SetUdpSrcPort(uint16_t UdpSrcPort) {
 	m_hcUdpSrcPort = UdpSrcPort;
 }
-void SixLowPanHc1::SetUdpDstPort(uint16_t UdpDstPort){
+uint16_t SixLowPanHc1::GetUdpSrcPort() {
+	return m_hcUdpSrcPort;
+}
+void SixLowPanHc1::SetUdpDstPort(uint16_t UdpDstPort) {
 	m_hcUdpDstPort = UdpDstPort;
 }
-void SixLowPanHc1::SetUdpLength(uint16_t UdpLength){
+uint16_t SixLowPanHc1::GetUdpDstPort() {
+	return m_hcUdpDstPort;
+}
+void SixLowPanHc1::SetUdpLength(uint16_t UdpLength) {
 	m_hcUdpLength = UdpLength;
+}
+void SixLowPanHc1::SetUdpChecksum(uint16_t UdpChecksum) {
+	m_hcUdpChecksum = UdpChecksum;
 }
 
 std::ostream & operator <<(std::ostream & os, const SixLowPanHc1 & h) {
@@ -543,12 +591,12 @@ void SixLowPanFrag1::Serialize(Buffer::Iterator start) const {
 	uint16_t temp = (m_datagramSize << 8) | uint16_t(LOWPAN_FRAG1);
 	i.WriteU16(temp);
 	i.WriteU16(m_datagramTag);
-	std::cout<<"Serialize of Frag1 = "<< (temp) <<std::endl;
+	std::cout << "Serialize of Frag1 = " << (temp) << std::endl;
 }
 
 uint32_t SixLowPanFrag1::Deserialize(Buffer::Iterator start) {
 	Buffer::Iterator i = start;
-	m_datagramSize = (i.ReadU16()>>8) & 0x7FF;
+	m_datagramSize = (i.ReadU16() >> 8) & 0x7FF;
 	m_datagramTag = i.ReadU16();
 	return GetSerializedSize();
 }
@@ -619,7 +667,7 @@ void SixLowPanFragN::Serialize(Buffer::Iterator start) const {
 uint32_t SixLowPanFragN::Deserialize(Buffer::Iterator start) {
 	Buffer::Iterator i = start;
 
-	m_datagramSize = (i.ReadU16()>>8) & 0x7ff;
+	m_datagramSize = (i.ReadU16() >> 8) & 0x7ff;
 	m_datagramTag = i.ReadU16();
 	m_datagramOffset = i.ReadU8();
 

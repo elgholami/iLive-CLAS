@@ -161,7 +161,7 @@ public:
 	 * NC: Not Compressed, UDP, ICMP or TCP.
 	 */
 	typedef enum {
-		HC1_NC = 0x00, HC1_UDP = 0x01, HC1_ICMP = 0x02, HC1_TCP = 0x03
+		HC1_NC = 0x00, HC1_UDP = 0x01, HC1_ICMP = 0x03, HC1_TCP = 0x02
 	} LowPanHc1NextHeader_e;
 
 	SixLowPanHc1(void);
@@ -249,8 +249,11 @@ public:
 	void SetHc1Encoding(uint8_t hc1Encoding);
 	void SetUdpEncoding(uint8_t UdpEncoding);
 	void SetUdpSrcPort(uint16_t UdpSrcPort);
+	uint16_t GetUdpSrcPort() const;
 	void SetUdpDstPort(uint16_t UdpDstPort);
+	uint16_t GetUdpDstPort() const;
 	void SetUdpLength(uint16_t UdpLength);
+	void SetUdpChecksum(uint16_t UdpChecksum);
 
 private:
 //  uint8_t m_serializedSize;

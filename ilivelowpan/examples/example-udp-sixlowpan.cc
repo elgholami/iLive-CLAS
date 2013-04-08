@@ -26,8 +26,7 @@
 // //             ====|_|====
 // //                router
 // //
-// // - Tracing of queues and packet receptions to file "example-udp-sixlowpan.tr"
-// // - An example for using to test UDP and 6LoWPAN.
+// // - Tracing of queues and packet receptions to file "example-sixlowpan.tr"
 #include <fstream>
 #include "ns3/core-module.h"
 #include "ns3/internet-module.h"
@@ -103,6 +102,7 @@ int main(int argc, char** argv) {
 	LogComponentEnable("ExampleUdpSixlowpan", LOG_LEVEL_ALL);
 //	LogComponentEnable("SixLowPanHelper", LOG_LEVEL_ALL);
 	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_DEBUG);
+	LogComponentEnable("UdpClient", LOG_LEVEL_INFO);
 
 	CommandLine cmd;
 	cmd.Parse(argc, argv);
@@ -115,13 +115,14 @@ int main(int argc, char** argv) {
 	NS_LOG_INFO ("Create nodes.");
 	Ptr<Node> n0 = CreateObject<Node>();
 	Ptr<Node> n1 = CreateObject<Node>();
-	Ptr<Node> r = CreateObject<Node>();
+//	Ptr<Node> r = CreateObject<Node>();
 
-	NodeContainer net1(n0, n1, r);
+//	NodeContainer net1(n0, n1, r);
+	NodeContainer net1(n0, n1);
 	NodeContainer all;
 	all.Add(n0);
 	all.Add(n1);
-	all.Add(r);
+//	all.Add(r);
 
 	NS_LOG_INFO ("Create IPv6 Internet Stack");
 	InternetStackHelper internetv6;
@@ -147,16 +148,19 @@ int main(int argc, char** argv) {
 	NS_LOG_INFO ("Create networks and assign IPv6 Addresses.");
 	Address serverAddress;
 	Ipv6AddressHelper ipv6;
-	ipv6.SetBase("2001:0000:f00d:cafe::", Ipv6Prefix(64));
+//	ipv6.SetBase("2001:0000:f00d:cafe::", Ipv6Prefix(64));
+	ipv6.SetBase("fe80::", Ipv6Prefix(64));
 	Ipv6InterfaceContainer i1 = ipv6.Assign(six1);
 
 
-	stackHelper.PrintRoutingTable(r);
+//	stackHelper.PrintRoutingTable(r);
 	stackHelper.PrintRoutingTable(n0);
 	stackHelper.PrintRoutingTable(n1);
 
 	//YIBO:: Build UDP client-server application here.
-	serverAddress = Address(i1.GetAddress(1, 1));
+//	serverAddress = Address(i1.GetAddress(1, 1));
+	Ipv6Address s = new Ipv6Address("fe80::1");
+	serverAddress = Address(s);
 
 	NS_LOG_INFO ("Create Applications.");
 	//
@@ -181,7 +185,7 @@ int main(int argc, char** argv) {
 	client.SetAttribute("PacketSize", UintegerValue(MaxPacketSize));
 	apps = client.Install(net1.Get(0));
 //	apps = client.Install(net1.Get(2));
-	apps.Start(Seconds(2.0));
+	apps.Start(Seconds(3.0));
 	apps.Stop(Seconds(15.0));
 
 	AsciiTraceHelper ascii;
