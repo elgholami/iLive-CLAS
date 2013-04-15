@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
 
 	NS_LOG_INFO ("Create networks and assign IPv6 Addresses.");
 	Ipv6AddressHelper ipv6;
-	ipv6.SetBase(Ipv6Address("2013:1::"), Ipv6Prefix(64));
+	ipv6.SetBase(Ipv6Address("fe80:1::"), Ipv6Prefix(64));
 	Ipv6InterfaceContainer i1 = ipv6.Assign(six1);
 	//i1.SetRouter(1, true);
 	i1.SetRouter(2, true);
@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
 	stackHelper.PrintRoutingTable(n1);
 
 	/* Create a Ping6 application to send ICMPv6 echo request from n0 to n1 via r */
-	uint32_t packetSize = 500;
+	uint32_t packetSize = 20;
 	uint32_t maxPacketCount = 50;
 	Time interPacketInterval = Seconds(1.);
 	Ping6Helper ping6;
