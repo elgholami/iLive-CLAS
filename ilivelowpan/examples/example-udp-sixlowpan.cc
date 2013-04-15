@@ -103,6 +103,7 @@ int main(int argc, char** argv) {
 //	LogComponentEnable("SixLowPanHelper", LOG_LEVEL_ALL);
 	LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_DEBUG);
 	LogComponentEnable("UdpClient", LOG_LEVEL_INFO);
+	LogComponentEnable("UdpServer", LOG_LEVEL_INFO);
 
 	CommandLine cmd;
 	cmd.Parse(argc, argv);
@@ -148,9 +149,12 @@ int main(int argc, char** argv) {
 	NS_LOG_INFO ("Create networks and assign IPv6 Addresses.");
 	Address serverAddress;
 	Ipv6AddressHelper ipv6;
-//	ipv6.SetBase("2001:0000:f00d:cafe::", Ipv6Prefix(64));
-	ipv6.SetBase("fe80::", Ipv6Prefix(64));
+	ipv6.SetBase("fe80:0:0:1::", Ipv6Prefix(64));
+//	ipv6.SetBase(Ipv6Address ("fe80::"), Ipv6Prefix (64), Ipv6Address ("::1"));
+//	ipv6.SetBase(Ipv6Address ("fe80:0000:f00d:cafe::"), Ipv6Prefix (64));
+
 	Ipv6InterfaceContainer i1 = ipv6.Assign(six1);
+//	i1.SetRouter(2, true);
 
 
 //	stackHelper.PrintRoutingTable(r);
@@ -158,35 +162,33 @@ int main(int argc, char** argv) {
 	stackHelper.PrintRoutingTable(n1);
 
 	//YIBO:: Build UDP client-server application here.
-//	serverAddress = Address(i1.GetAddress(1, 1));
-	Ipv6Address s = new Ipv6Address("fe80::1");
-	serverAddress = Address(s);
+	serverAddress = Address(i1.GetAddress(1, 1));
+//	serverAddress = ipv6.NewAddress ();
 
-	NS_LOG_INFO ("Create Applications.");
+	NS_LOG_INFO ("Create Applications." << serverAddress);
 	//
 	// Create one udpServer applications on node one.
 	//
-	uint16_t port = 4000;
+	uint16_t port = 61630;
 	UdpServerHelper server(port);
 	ApplicationContainer apps = server.Install(net1.Get(1));
-	apps.Start(Seconds(1.0));
-	apps.Stop(Seconds(15.0));
+	apps.Start(Seconds(20.0));
+	apps.Stop(Seconds(60.0));
 
 	//
 	// Create one UdpClient application to send UDP datagrams from node zero to
 	// node one.
 	//
-	uint32_t MaxPacketSize = 30;
-	Time interPacketInterval = Seconds(2.05);
+	uint32_t MaxPacketSize = 24;
+	Time interPacketInterval = Seconds(2.00);
 	uint32_t maxPacketCount = 320;
 	UdpClientHelper client(serverAddress, port);
 	client.SetAttribute("MaxPackets", UintegerValue(maxPacketCount));
 	client.SetAttribute("Interval", TimeValue(interPacketInterval));
 	client.SetAttribute("PacketSize", UintegerValue(MaxPacketSize));
 	apps = client.Install(net1.Get(0));
-//	apps = client.Install(net1.Get(2));
-	apps.Start(Seconds(3.0));
-	apps.Stop(Seconds(15.0));
+	apps.Start(Seconds(23.0));
+	apps.Stop(Seconds(59.0));
 
 	AsciiTraceHelper ascii;
 	csma.EnableAsciiAll(ascii.CreateFileStream("example-udp-sixlowpan.tr"));
