@@ -6,6 +6,7 @@ def build(bld):
     module.source = [
         'model/sixlowpan-net-device.cc',
         'model/sixlowpan-header.cc',
+#        'model/sixlowpan-header-mebr.cc',
         'helper/sixlowpan-helper.cc',
         ]
 
@@ -14,6 +15,7 @@ def build(bld):
     headers.source = [
         'model/sixlowpan-net-device.h',
         'model/sixlowpan-header.h',
+#        'model/sixlowpan-header-mebr.h',
         'helper/sixlowpan-helper.h',
         ]
 
