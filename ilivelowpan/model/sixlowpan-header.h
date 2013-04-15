@@ -26,6 +26,8 @@
 #include "ns3/packet.h"
 #include "ns3/internet-module.h"
 
+#define UIP_HTONS(n) (uint16_t)((((uint16_t) (n)) << 8) | (((uint16_t) (n)) >> 8))
+
 namespace ns3 {
 namespace sixlowpan {
 

@@ -178,6 +178,7 @@ uint32_t SixLowPanHc1::GetSerializedSize() const {
 	}
 
 	if (m_nextHeaderCompression == HC1_UDP) {
+		serializedSize += 1;
 		serializedSize += 3;
 	}
 
@@ -216,8 +217,11 @@ void SixLowPanHc1::Serialize(Buffer::Iterator start) const {
 	//YIBO::Put HC2 3 bytes compressed UDP header here.
 	if (m_nextHeaderCompression == HC1_UDP) {
 		uint8_t compressedUdpHeader;
-		compressedUdpHeader = ((uint8_t) (m_hcUdpSrcPort << 4))
-				+ ((uint8_t) m_hcUdpDstPort);
+//		compressedUdpHeader = (uint8_t) ((UIP_HTONS(m_hcUdpSrcPort) - 0xf0b0)<< 4)
+//				+ (uint8_t)(( UIP_HTONS(m_hcUdpDstPort) - 0xf0b0));
+		compressedUdpHeader = (uint8_t) ((m_hcUdpSrcPort - 0xf0b0)<< 4)
+				+ (uint8_t)(( m_hcUdpDstPort - 0xf0b0));
+
 		i.WriteU8(compressedUdpHeader);
 		i.WriteU16(m_hcUdpChecksum);
 	}
@@ -280,7 +284,7 @@ void SixLowPanHc1::Serialize(Buffer::Iterator start) const {
 		i.WriteU8(m_nextHeader);
 	}
 
-	//YIBO:TODO: HC2 is not yet supported. Should be.
+	//YIBO:
 //	NS_ASSERT_MSG( m_hc2HeaderPresent != true,
 //			"Can not compress HC2, exiting. Very sorry.");
 }
@@ -317,7 +321,19 @@ uint32_t SixLowPanHc1::Deserialize(Buffer::Iterator start) {
 
 	m_hopLimit = i.ReadU8();
 
-	//TODO:
+	//YIBO:UDP compression deserialize.
+	if(m_nextHeader == Ipv6Header::IPV6_UDP){
+		/* UDP ports, len, checksum */
+		uint8_t compressedUdpHeader;
+		compressedUdpHeader = i.ReadU8();
+//		this->m_hcUdpSrcPort = UIP_HTONS(0xf0b0 + (compressedUdpHeader >> 4));
+//		this->m_hcUdpDstPort = UIP_HTONS(0xf0b0 + (compressedUdpHeader & 0x0F));
+		this->m_hcUdpSrcPort = 0xf0b0 + (compressedUdpHeader >> 4);
+		this->m_hcUdpDstPort = 0xf0b0 + (compressedUdpHeader & 0x0F);
+		uint16_t compressedUdpCheckSum;
+		compressedUdpCheckSum = i.ReadU16();
+		this->m_hcUdpChecksum = compressedUdpCheckSum;
+	}
 
 	switch (m_srcCompression) {
 	case HC1_PIII:
@@ -529,13 +545,13 @@ void SixLowPanHc1::SetUdpEncoding(uint8_t UdpEncoding) {
 void SixLowPanHc1::SetUdpSrcPort(uint16_t UdpSrcPort) {
 	m_hcUdpSrcPort = UdpSrcPort;
 }
-uint16_t SixLowPanHc1::GetUdpSrcPort() {
+uint16_t SixLowPanHc1::GetUdpSrcPort(void) const {
 	return m_hcUdpSrcPort;
 }
 void SixLowPanHc1::SetUdpDstPort(uint16_t UdpDstPort) {
 	m_hcUdpDstPort = UdpDstPort;
 }
-uint16_t SixLowPanHc1::GetUdpDstPort() {
+uint16_t SixLowPanHc1::GetUdpDstPort(void) const {
 	return m_hcUdpDstPort;
 }
 void SixLowPanHc1::SetUdpLength(uint16_t UdpLength) {
