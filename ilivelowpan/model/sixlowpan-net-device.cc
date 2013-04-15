@@ -229,8 +229,11 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 		return;
 	}
 	std::cout << "Pkt is Decompressed well!" << std::endl;
+
 	//YIBO: Test the header storage of 6LoWPAN
 	Address address = m_port->GetAddress();
+	std::cout << "###***" << address << std::endl;
+	std::cout << "###***" << dst << std::endl;
 
 	Ipv6Header* hdr; // = (*dynamic_cast<Ipv6Header *> ipHeaders->GetHeader(Ipv6Header::GetTypeId()) );
 	//YIBO: Force Header type to Ipv6Header type, so the IPv6 can process it.
@@ -246,7 +249,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 		if (hdr->GetDestinationAddress().IsMulticast()) {
 			packetType = PACKET_MULTICAST;
 			std::cout << "YIBO::Get a PACKET_MULTICAST." << std::endl;
-		} else if (hdr->GetDestinationAddress() == address) {
+		} else if (dst == address) {
 			packetType = PACKET_HOST;
 			std::cout << "YIBO::Get a PACKET_HOST." << std::endl;
 		} else {
@@ -259,17 +262,20 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	//YIBO: Notice these two Callbacks.
 	if (!m_promiscRxCallback.IsNull()) {
 		//YIBO: If m_promiscRxCallback of this net-device is not NULL.
-		std::cout << "YIBO::Throw this packet to Ipv6L3Protocol." << std::endl;
+		std::cout << "###YIBO::Throw this packet to Ipv6L3Protocol." << std::endl;
 		m_promiscRxCallback(this, copyPkt, Ipv6L3Protocol::PROT_NUMBER, src,
 				dst, packetType);
 	}
 	std::cout << "YIBO::Throw this packet to Ipv6L3Protocol." << std::endl;
-//	m_rxCallback(this, copyPkt, Ipv6L3Protocol::PROT_NUMBER, src);
+	std::cout << "###" << *copyPkt << std::endl;
 
 	//YIBO: Check the packetType
 	switch (packetType) {
 	case PACKET_HOST:
 		if (dst == address) {
+			std::cout << "YIBO::Go to the PACKET_HOST case." << std::endl;
+//			m_promiscRxCallback(this, copyPkt, Ipv6L3Protocol::PROT_NUMBER, hdr->GetSourceAddress(), hdr->GetDestinationAddress(), packetType);
+
 			m_rxCallback(this, copyPkt, Ipv6L3Protocol::PROT_NUMBER, src);
 		}
 		break;
@@ -277,6 +283,7 @@ void SixLowPanNetDevice::ReceiveFromDevice(Ptr<NetDevice> incomingPort,
 	case PACKET_BROADCAST:
 	case PACKET_MULTICAST:
 		m_rxCallback(this, copyPkt, Ipv6L3Protocol::PROT_NUMBER, src);
+
 		break;
 
 	case PACKET_OTHERHOST:
@@ -454,10 +461,12 @@ bool SixLowPanNetDevice::Send(Ptr<Packet> packet, const Address& dest,
 		FinalizePacketPreFrag(packet, headersPre);
 		FinalizePacketPostFrag(packet, headersPost);
 
-		NS_LOG_DEBUG( "CYB:SixLowPanNetDevice::Send " << m_node->GetId () << " " << *packet );
+		NS_LOG_DEBUG( "CYB:SixLowPanNetDevice::Send " << m_node->GetId () << " " << *packet << " PN:"<< protocolNumber);
 		// ret = m_port->Send (packet, dest, protocolNumber);
 		//YIBO:: Fix the protocolNumber to UIP_ETHTYPE_802154, like ravenusb. So Wireshark can work.
 		ret = m_port->Send(packet, dest, 0x809a);
+		NS_LOG_DEBUG ("Sending UID packet is " << packet->GetUid ());
+//		ret = m_port->Send(packet, dest, 0x86dd);
 	}
 	NS_LOG_DEBUG( "***End of Sending a 6LoWPAN packet*** " );
 	return ret;
@@ -478,7 +487,7 @@ bool SixLowPanNetDevice::SendFrom(Ptr<Packet> packet, const Address& src,
 	origHdrSize += CompressLowPanHc1(packet, src, dest, headersPre);
 	//YIBO:: create new function compressLowPanHc6...here
 
-	if (packet->GetSerializedSize() > GetMtu()) {
+	if (packet->GetSerializedSize() > 102) {
 		// fragment
 		//YIBO:: Not test yet
 		std::list<Ptr<Packet> > fragmentList;
@@ -548,7 +557,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 	Ipv6Header ipHeader;
 	SixLowPanHc1* hc1Header = new SixLowPanHc1;
 	uint32_t size = 0;
-	NS_LOG_DEBUG( "SixLowPanNetDevice::CompressLowPanHc1_B " << *packet << src << dst );
+	NS_LOG_DEBUG( "SixLowPanNetDevice::CompressLowPanHc1_B " << *packet << ",src:" << src << ",dsr:" << dst );
 
 	if (packet->PeekHeader(ipHeader) != 0) {
 		packet->RemoveHeader(ipHeader);
@@ -686,9 +695,12 @@ void SixLowPanNetDevice::DecompressLowPanHc1(Ptr<Packet> packet,
 
 	Ipv6Header* ipHeaderPtr = new Ipv6Header;
 	SixLowPanHc1 encoding;
+	uint32_t packetOrigBufferSize = packet->GetSize();
 	std::cout << "<<<<<<<<---START of DecompressLowPanHc1--->>>>>>>>" << std::endl;
+
 	packet->RemoveHeader(encoding);
 	ipHeaderPtr->SetHopLimit(encoding.GetHopLimit());
+	uint32_t packetOrigHeaderSize = encoding.GetSerializedSize();
 
 	switch (encoding.GetSrcCompression()) {
 
@@ -784,13 +796,10 @@ case SixLowPanHc1::HC1_PCIC:
 	}
 
 	ipHeaderPtr->SetNextHeader(encoding.GetNextHeader());
-	ipHeaderPtr->SetPayloadLength(packet->GetSize());
+	ipHeaderPtr->SetPayloadLength(packetOrigBufferSize - packetOrigHeaderSize + 8);
 
 //	NS_ASSERT_MSG(
 //			encoding.IsHc2HeaderPresent() && (encoding.GetNextHeader() != Ipv6Header::IPV6_UDP),
-//			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
-//
-//	NS_ASSERT_MSG(encoding.IsHc2HeaderPresent() == false,
 //			"6LoWPAN: error in decompressing HC1 encoding, unsupported L4 compressed header present.");
 
 	headers->StoreHeader(Ipv6Header::GetTypeId(), ipHeaderPtr);
@@ -801,13 +810,14 @@ case SixLowPanHc1::HC1_PCIC:
 		UdpHeader* udpHeaderPtr = new UdpHeader;
 		udpHeaderPtr->SetSourcePort(encoding.GetUdpSrcPort());
 		udpHeaderPtr->SetDestinationPort(encoding.GetUdpDstPort());
+		udpHeaderPtr->SetPayLoadSize(packetOrigBufferSize - packetOrigHeaderSize);
 		udpHeaderPtr->EnableChecksums();
 
 		headers->StoreHeader(UdpHeader::GetTypeId(), udpHeaderPtr);
-		NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *udpHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
+		NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *udpHeaderPtr << " " << *packet << ", PL Size " << packet->GetSize () );
 	}
 	else{
-		NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << " Size " << packet->GetSize () );
+		NS_LOG_DEBUG( "YIBO:Decompressed Rebuilt packet: " << *ipHeaderPtr << " " << *packet << ", PL Size " << packet->GetSize () );
 	}
 	NS_LOG_DEBUG( "---------------------------------------------------------------------------------" );
 	std::cout << "<<<<<<<<---END of DecompressLowPanHc1--->>>>>>>>" << std::endl;
@@ -875,6 +885,7 @@ void SixLowPanNetDevice::FinalizePacketIp(Ptr<Packet> packet,
 
 	hdr = headers->GetHeader(UdpHeader::GetTypeId());
 	if (hdr) {
+		std::cout << "-YIBO: FinalizaPacketIp-UdpHeader" << std::endl;
 		packet->AddHeader(*dynamic_cast<UdpHeader *>(hdr));
 	}
 
