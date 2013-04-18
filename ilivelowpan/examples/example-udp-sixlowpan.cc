@@ -19,14 +19,14 @@
  * Author: Alberto Cappetti (albertocappetti@alice.it)
  */
 
-// Network topology
+// Two nodes 6LoWPAN Network topology
 // //
-// //             n0   r    n1
-// //             |    _    |
-// //             ====|_|====
-// //                router
+// //             n0        n1
+// //             |         |
+// //             ===========
 // //
-// // - Tracing of queues and packet receptions to file "example-sixlowpan.tr"
+// //
+// // - Tracing of queues and packet receptions to file "example-udp-sixlowpan.tr"
 #include <fstream>
 #include "ns3/core-module.h"
 #include "ns3/internet-module.h"
@@ -35,6 +35,8 @@
 #include "ns3/ipv6-static-routing-helper.h"
 
 #include "ns3/ipv6-routing-table-entry.h"
+#include "ns3/ipv6-address-helper.h"
+#include "ns3/ipv6-address-generator.h"
 #include "ns3/sixlowpan-header.h"
 #include "ns3/sixlowpan-net-device.h"
 #include "ns3/sixlowpan-helper.h"
@@ -142,27 +144,27 @@ int main(int argc, char** argv) {
 
 	SixLowPanHelper sixlowpan;
 	NetDeviceContainer six1 = sixlowpan.Install(d1);
-	//NetDeviceContainer six2 = sixlowpan.Install(d2);
-	//NetDeviceContainer six3 = sixlowpan.Install(d3);
-	//Why need to define three NetDeviceContainer valuables.
+
 
 	NS_LOG_INFO ("Create networks and assign IPv6 Addresses.");
 	Address serverAddress;
 	Ipv6AddressHelper ipv6;
-	ipv6.SetBase("fe80:0:0:1::", Ipv6Prefix(64));
-//	ipv6.SetBase(Ipv6Address ("fe80::"), Ipv6Prefix (64), Ipv6Address ("::1"));
-//	ipv6.SetBase(Ipv6Address ("fe80:0000:f00d:cafe::"), Ipv6Prefix (64));
+//	ipv6.SetBase("fe80:0:0:0::", Ipv6Prefix(64));
+//	ipv6.SetBase(Ipv6Address ("fe80:0:0:0::"), Ipv6Prefix (64), Ipv6Address ("::1"));
+	ipv6.SetBase(Ipv6Address ("fe80:0000:f00d:cafe::"), Ipv6Prefix (64));
 
 	Ipv6InterfaceContainer i1 = ipv6.Assign(six1);
-//	i1.SetRouter(2, true);
-
+//	Ipv6Address ipAddr1;
+//	ipAddr1 = ipv6.NewAddress (); // ::1
 
 //	stackHelper.PrintRoutingTable(r);
 	stackHelper.PrintRoutingTable(n0);
 	stackHelper.PrintRoutingTable(n1);
 
 	//YIBO:: Build UDP client-server application here.
-	serverAddress = Address(i1.GetAddress(1, 1));
+	//YIBO:: Interface 0 is loopback, interface 1 is six1, and the 0th addr is linklocal
+	//YIBO:: For a better compression,so we look at address (1,0)
+	serverAddress = Address(i1.GetAddress(1, 0));
 //	serverAddress = ipv6.NewAddress ();
 
 	NS_LOG_INFO ("Create Applications." << serverAddress);
@@ -179,8 +181,8 @@ int main(int argc, char** argv) {
 	// Create one UdpClient application to send UDP datagrams from node zero to
 	// node one.
 	//
-	uint32_t MaxPacketSize = 24;
-	Time interPacketInterval = Seconds(2.00);
+	uint32_t MaxPacketSize = 131;
+	Time interPacketInterval = Seconds(5.00);
 	uint32_t maxPacketCount = 320;
 	UdpClientHelper client(serverAddress, port);
 	client.SetAttribute("MaxPackets", UintegerValue(maxPacketCount));
@@ -188,7 +190,7 @@ int main(int argc, char** argv) {
 	client.SetAttribute("PacketSize", UintegerValue(MaxPacketSize));
 	apps = client.Install(net1.Get(0));
 	apps.Start(Seconds(23.0));
-	apps.Stop(Seconds(59.0));
+	apps.Stop(Seconds(35.0));
 
 	AsciiTraceHelper ascii;
 	csma.EnableAsciiAll(ascii.CreateFileStream("example-udp-sixlowpan.tr"));

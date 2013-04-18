@@ -163,7 +163,7 @@ public:
 	 * NC: Not Compressed, UDP, ICMP or TCP.
 	 */
 	typedef enum {
-		HC1_NC = 0x00, HC1_UDP = 0x01, HC1_ICMP = 0x03, HC1_TCP = 0x02
+		HC1_NC = 0x00, HC1_UDP = 0x01, HC1_ICMP = 0x02, HC1_TCP = 0x03
 	} LowPanHc1NextHeader_e;
 
 	SixLowPanHc1(void);

@@ -121,6 +121,7 @@ private:
 	 */
 	class Fragments: public SimpleRefCount<Fragments> {
 	public:
+		Ptr<HeaderStorage> m_ipHeaders;
 		/**
 		 * \brief Constructor.
 		 */
@@ -153,7 +154,7 @@ private:
 		/**
 		 * \brief Set the reconstructed packet size.
 		 */
-		void SetPacketSize(uint32_t packetSize);
+		void SetPacketSize(uint32_t packetSize, Ptr<HeaderStorage> ipHeaders);
 
 	private:
 
@@ -161,6 +162,7 @@ private:
 		 * \brief The size of the reconstructed packet.
 		 */
 		uint32_t m_packetSize;
+
 
 		/**
 		 * \brief The current fragments.
@@ -189,7 +191,7 @@ private:
 	 * \return true is the fragment completed the packet
 	 */
 	bool ProcessFragment(Ptr<Packet>& packet, Address const &src,
-			Address const &dst, bool isFirst);
+			Address const &dst, bool isFirst, Ptr<HeaderStorage> ipHeaders);
 
 	/**
 	 * \brief Process the timeout for packet fragments
