@@ -726,7 +726,7 @@ uint32_t SixLowPanNetDevice::CompressLowPanHc1(Ptr<Packet> packet,
 #endif
 
 		return size; //YIBO:: Only compress IPv6 header.
-		//packet->AddHeader(*hc1Header);
+//		packet->AddHeader(*hc1Header);
 //		packet->AddHeader(*dynamic_cast<SixLowPanHc1 *>(hc1Header));
 	}
 
@@ -1182,18 +1182,32 @@ bool SixLowPanNetDevice::ProcessFragment(Ptr<Packet>& packet,
 
 	if (fragments->IsEntire()) {
 		packet = fragments->GetPacket();
+
+
 		Ipv6Header ipHeaderPtr;
 		Ipv6Header* ipHeaderPtr_2 = new Ipv6Header;
 		packet->RemoveHeader(ipHeaderPtr);
 		ipHeaderPtr_2->SetSourceAddress(ipHeaderPtr.GetSourceAddress());
 		ipHeaderPtr_2->SetDestinationAddress(ipHeaderPtr.GetDestinationAddress());
 		ipHeaderPtr_2->SetHopLimit(ipHeaderPtr.GetHopLimit());
-		ipHeaderPtr_2->SetPayloadLength(ipHeaderPtr.GetPayloadLength() + p->GetSize());
+		ipHeaderPtr_2->SetPayloadLength(packet->GetSize());
 		ipHeaderPtr_2->SetFlowLabel(ipHeaderPtr.GetFlowLabel());
 		ipHeaderPtr_2->SetNextHeader(ipHeaderPtr.GetNextHeader());
 		ipHeaderPtr_2->SetTrafficClass(ipHeaderPtr.GetTrafficClass());
 
+
+
+		UdpHeader udpHeaderPtr;
+		UdpHeader* udpHeaderPtr_2 = new UdpHeader;
+		packet->RemoveHeader(udpHeaderPtr);
+		udpHeaderPtr_2->SetSourcePort(udpHeaderPtr.GetSourcePort());
+		udpHeaderPtr_2->SetDestinationPort(udpHeaderPtr.GetDestinationPort());
+		udpHeaderPtr_2->SetPayLoadSize(ipHeaderPtr_2->GetPayloadLength() - 8);
+		udpHeaderPtr_2->EnableChecksums();
+
+		ipHeaders->StoreHeader(UdpHeader::GetTypeId(), udpHeaderPtr_2);
 		ipHeaders->StoreHeader(Ipv6Header::GetTypeId(), ipHeaderPtr_2);
+
 		fragments = 0;
 		m_fragments.erase(key);
 		if (m_fragmentsTimers[key].IsRunning()) {

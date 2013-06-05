@@ -618,14 +618,17 @@ uint32_t SixLowPanFrag1::GetSerializedSize() const {
 void SixLowPanFrag1::Serialize(Buffer::Iterator start) const {
 	Buffer::Iterator i = start;
 
-	uint16_t temp = (m_datagramSize << 8) | uint16_t(LOWPAN_FRAG1);
+//	uint16_t temp = (m_datagramSize << 8) | uint16_t(LOWPAN_FRAG1);
+	uint16_t temp = (uint16_t(LOWPAN_FRAG1)) | ((m_datagramSize & 0x0700)>> 8) | ((m_datagramSize & 0x00FF) << 8);
 	i.WriteU16(temp);
 	i.WriteU16(m_datagramTag);
 }
 
 uint32_t SixLowPanFrag1::Deserialize(Buffer::Iterator start) {
 	Buffer::Iterator i = start;
-	m_datagramSize = (i.ReadU16() >> 8) & 0x7FF;
+//	m_datagramSize = (i.ReadU16() >> 8) & 0x7FF;
+	m_datagramSize = i.ReadU16();
+	m_datagramSize = ((m_datagramSize & 0x0007) << 8) | ((m_datagramSize & 0xFF00) >> 8);
 	m_datagramTag = i.ReadU16();
 	return GetSerializedSize();
 }
@@ -687,7 +690,9 @@ uint32_t SixLowPanFragN::GetSerializedSize() const {
 void SixLowPanFragN::Serialize(Buffer::Iterator start) const {
 	Buffer::Iterator i = start;
 
-	uint16_t temp = (m_datagramSize << 8) | uint16_t(LOWPAN_FRAGN);
+//	uint16_t temp = (m_datagramSize << 8) | uint16_t(LOWPAN_FRAGN);
+	uint16_t temp = (uint16_t(LOWPAN_FRAGN)) | ((m_datagramSize & 0x0700)>> 8) | ((m_datagramSize & 0x00FF) << 8);
+
 	i.WriteU16(temp);
 	i.WriteU16(m_datagramTag);
 	i.WriteU8(m_datagramOffset);
@@ -697,7 +702,9 @@ void SixLowPanFragN::Serialize(Buffer::Iterator start) const {
 uint32_t SixLowPanFragN::Deserialize(Buffer::Iterator start) {
 	Buffer::Iterator i = start;
 
-	m_datagramSize = (i.ReadU16() >> 8) & 0x7ff;
+//	m_datagramSize = (i.ReadU16() >> 8) & 0x7ff;
+	m_datagramSize = i.ReadU16();
+	m_datagramSize = ((m_datagramSize & 0x0007) << 8) | ((m_datagramSize & 0xFF00) >> 8);
 	m_datagramTag = i.ReadU16();
 	m_datagramOffset = i.ReadU8();
 
