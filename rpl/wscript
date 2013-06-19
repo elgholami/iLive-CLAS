@@ -1,0 +1,26 @@
+## -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+def build(bld):
+    module = bld.create_ns3_module('rpl', ['internet', 'config-store', 'tools', 'point-to-point', 'wifi', 'mobility', 'applications', 'csma'])
+    module.includes = '.'
+    module.source = [
+        'model/rpl-rtable.cc',
+        'model/rpl-packet-queue.cc',
+        'model/rpl-packet.cc',
+        'model/rpl-routing-protocol.cc',
+        'helper/rpl-helper.cc',
+        ]
+
+    headers = bld(features='ns3header')
+    headers.module = 'rpl'
+    headers.source = [
+        'model/rpl-rtable.h',
+        'model/rpl-packet-queue.h',
+        'model/rpl-packet.h',
+        'model/rpl-routing-protocol.h',
+        'model/rpl-conf.h',
+        'helper/rpl-helper.h',
+        ]
+
+
+    bld.ns3_python_bindings()
